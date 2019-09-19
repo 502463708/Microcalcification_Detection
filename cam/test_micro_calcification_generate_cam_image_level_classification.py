@@ -15,6 +15,7 @@ from torch.nn import functional as F
 from PIL import Image
 
 os.environ['CUDA_VISIBLE_DEVICES'] = cfg.general.cuda_device_idx
+
 cudnn.benchmark = True
 
 model_saving_dir = 'data/lars/models/'
@@ -154,13 +155,18 @@ if __name__ == '__main__':
                 prediction_saving_dir, flag_2_dir_mapping[classification_flag])
 
             features_blobs = []
+
+            # Hook layer from net
             net._modules.get('layer3').register_forward_hook(hook_feature)
+
             params = list(net.parameters())
             weight_softmax = np.squeeze(params[-2].data.cpu().numpy())
+
             normalize = transforms.Normalize(
                 mean=[0.485],
                 std=[0.229]
             )
+
             preprocess = transforms.Compose([
                 transforms.Resize((112, 112)),
                 transforms.ToTensor(),
@@ -168,6 +174,8 @@ if __name__ == '__main__':
             ])
 
             img_pil = Image.fromarray(image_np.astype('uint8')).convert('L')
+
+            # Save temporary image
             img_pil.save('test.png')
 
             img_tensor = preprocess(img_pil)
@@ -175,7 +183,6 @@ if __name__ == '__main__':
             img_variable = img_variable.cuda()
             logit = net(img_variable)
             h_x = F.softmax(logit, dim=1).data.squeeze()
-            probs, idx = h_x.sort(0, True)
             idx = idx.cpu().numpy()
             CAMs = returnCAM(features_blobs[0], weight_softmax, [idx[0]])
 
@@ -184,6 +191,8 @@ if __name__ == '__main__':
             height, width, _ = img.shape
             heatmap = cv2.applyColorMap(cv2.resize(
                 CAMs[0], (width, height)), cv2.COLORMAP_JET)
+
+            # Combine CAM and original map
             result = heatmap * 0.3 + img * 0.5
 
             cv2.imwrite(os.path.join(saving_dir_of_this_patch, filename.replace('.png', '_image.png')),
