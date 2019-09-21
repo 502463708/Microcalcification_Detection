@@ -1,3 +1,10 @@
 
 *.xml
 *.iml
+*.pyc
+
+venv/*
+.idea/*
+.pytest_cache/*
+
+nohup.out
