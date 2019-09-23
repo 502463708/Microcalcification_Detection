@@ -158,7 +158,7 @@ def TestMicroCalcificationReconstruction(args):
     logger.write_and_print('Load ckpt: {0}...'.format(ckpt_path))
 
     # create dataset and data loader
-    dataset = MicroCalcificationDataset(data_root_dir=cfg.general.data_root_dir,
+    dataset = MicroCalcificationDataset(data_root_dir=args.data_root_dir,
                                         mode=args.dataset_type,
                                         enable_random_sampling=False,
                                         pos_to_neg_ratio=cfg.dataset.pos_to_neg_ratio,
