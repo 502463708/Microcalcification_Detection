@@ -1,3 +1,4 @@
+import argparse
 import os
 import torch
 from torch.autograd import Variable
@@ -5,23 +6,55 @@ from net.vnet2d_v2 import VNet2d
 
 kMega = 1e6
 
+def ParseArguments():
+    parser = argparse.ArgumentParser()
 
-def TestVdnet2dOutputChannels(batch_size, in_channels=1, out_channels=3, dim_x=512, dim_y=512):
-	assert in_channels > 0
-	assert out_channels > 0
+    parser.add_argument('--batch_size',
+                        type=int,
+                        default=12,
+                        help='number of patches in each batch')
 
-	model = VNet2d(num_in_channels=in_channels, num_out_channels=out_channels)
+    parser.add_argument('--in_channels',
+                        type=int,
+                        default=1,
+                        help='1 for grayscale, 3 for RGB images')
+
+    parser.add_argument('--out_channels',
+                        type=int,
+                        default=1,
+                        help='out channels number')
+
+    parser.add_argument('--dim_x',
+                        type=int,
+                        default=112,
+                        help='the pixels of patch height')
+
+    parser.add_argument('--dim_y',
+                        type=int,
+                        default=112,
+                        help='the pixels of patch width')
+
+    args = parser.parse_args()
+
+    return args
+
+
+def TestVdnet2dOutputChannels(args):
+	assert args.in_channels > 0
+	assert args.out_channels > 0
+
+	model = VNet2d(num_in_channels=args.in_channels, num_out_channels=args.out_channels)
 	model = torch.nn.DataParallel(model).cuda()
 	model = model.cuda()
 	print('Total params: %.2fM' % (sum(p.numel() for p in model.parameters()) / kMega))
 
-	in_images = torch.zeros([batch_size, in_channels, dim_y, dim_x])
+	in_images = torch.zeros([args.batch_size, args.in_channels, args.dim_y, args.dim_x])
 	in_images = in_images.cuda()
 	in_images_v = Variable(in_images, requires_grad=False)
 
 	reconstructions, residues = model(in_images_v)
-	assert reconstructions.size()[0] == batch_size
-	assert reconstructions.size()[1] == out_channels
+	assert reconstructions.size()[0] == args.batch_size
+	assert reconstructions.size()[1] == args.out_channels
 
 	print("input shape = ", in_images.shape)
 	print("reconstructions shape = ", reconstructions.shape)
@@ -36,18 +69,9 @@ def TestVdnet2dOutputChannels(batch_size, in_channels=1, out_channels=3, dim_x=5
 
 if __name__ == '__main__':
 	os.environ['CUDA_VISIBLE_DEVICES'] = '1'
-
-	batch_size = 12
-	in_channels = 1
-	out_channels = 1
-	dim_x = 112
-	dim_y = 112
+	args=ParseArguments()
 
 	while True:
-		TestVdnet2dOutputChannels(batch_size,
-								  in_channels,
-								  out_channels,
-								  dim_x,
-								  dim_y)
+		TestVdnet2dOutputChannels(args)
 
 # TestVdnet2dOutputChannels(10, 1, 512, 512)
