@@ -123,7 +123,11 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
 
     # calculate accuracy of this epoch
     accuracy_of_this_epoch = (TPs_epoch_level + TNs_epoch_level) / (
-                TPs_epoch_level + TNs_epoch_level + FPs_epoch_level + FNs_epoch_level)
+            TPs_epoch_level + TNs_epoch_level + FPs_epoch_level + FNs_epoch_level)
+
+    # record metric on validation set for determining the best model to be saved
+    if not training:
+        metrics.determine_saving_metric_on_validation_list.append(accuracy_of_this_epoch)
 
     if logger is not None:
         logger.write('{} of epoch {} finished'.format('training' if training else 'evaluating', epoch_idx))
@@ -296,6 +300,19 @@ if __name__ == '__main__':
 
         logger.flush()
 
-        # whether to save this model
+        # whether to save this model according to config
         if epoch_idx % cfg.train.save_epochs is 0:
             torch.save(net.state_dict(), os.path.join(ckpt_dir, 'net_epoch_{}.pth'.format(epoch_idx)))
+
+        # save this model in case that this is the currently best model on validation set
+        is_best_ckpt_on_validation_set = metrics.determine_saving_metric_on_validation_list[-1] == max(
+            metrics.determine_saving_metric_on_validation_list)
+        if is_best_ckpt_on_validation_set:
+            saved_ckpt_list = os.listdir(ckpt_dir)
+            # remove the last saved best model
+            for saved_ckpt_filename in saved_ckpt_list:
+                if 'net_best_on_validation_set' in saved_ckpt_filename:
+                    os.remove(os.path.join(ckpt_dir, saved_ckpt_filename))
+            # save the current best model
+            torch.save(net.state_dict(),
+                       os.path.join(ckpt_dir, 'net_best_on_validation_set_epoch_{}.pth'.format(epoch_idx)))
