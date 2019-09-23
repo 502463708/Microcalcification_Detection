@@ -1,32 +1,62 @@
 import os
 import time
 import torch
+import argparse
 
-from loss.t_test_loss import TTestLoss
+from t_test_loss import TTestLoss
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 
-def test_t_test_loss(num_test, batch_size, num_channels, height, width):
-	for i in range(num_test):
-		start_time = time.time()
-		residues = torch.rand(batch_size, num_channels, height, width).cuda()
-		image_level_labels = torch.rand(batch_size, 1).cuda()
-		image_level_labels[image_level_labels <= 0.5] = 0
-		image_level_labels[image_level_labels > 0.5] = 1
-		image_level_labels = image_level_labels.byte()
+def ParseArguments():
+    parser = argparse.ArgumentParser()
 
-		loss = TTestLoss()(residues, image_level_labels)
-		print('time:', time.time() - start_time, 'loss: ', loss.item())
+    parser.add_argument('--num_test',
+                        type=int,
+                        default=100,
+                        help='number of test')
 
-	return
+    parser.add_argument('--batch_size',
+                        type=int,
+                        default=48,
+                        help='number of patches in each batch')
+
+    parser.add_argument('--num_channels',
+                        type=int,
+                        default=1,
+                        help='1 for grayscale, 3 for RGB images')
+
+    parser.add_argument('--height',
+                        type=int,
+                        default=112,
+                        help='the pixels of patch height')
+
+    parser.add_argument('--width',
+                        type=int,
+                        default=112,
+                        help='the pixels of patch width')
+
+    args = parser.parse_args()
+
+    return args
+
+
+def test_t_test_loss(args):
+    for i in range(args.num_test):
+        start_time = time.time()
+        residues = torch.rand(args.batch_size, args.num_channels, args.height, args.width).cuda()
+        image_level_labels = torch.rand(args.batch_size, 1).cuda()
+        image_level_labels[image_level_labels <= 0.5] = 0
+        image_level_labels[image_level_labels > 0.5] = 1
+        image_level_labels = image_level_labels.byte()
+
+        loss = TTestLoss()(residues, image_level_labels)
+        print('time:', time.time() - start_time, 'loss: ', loss.item())
+
+    return
 
 
 if __name__ == '__main__':
-	num_test = 100
-	batch_size = 48
-	num_channels = 1
-	height = 112
-	width = 112
+    args = ParseArguments()
 
-	test_t_test_loss(num_test, batch_size, num_channels, height, width)
+    test_t_test_loss(args)

@@ -2,23 +2,65 @@ import cv2
 import numpy as np
 import os
 import shutil
+import argparse
 
 from config.config_micro_calcification_reconstruction import cfg
 from dataset.dataset_micro_calcification import MicroCalcificationDataset
 from torch.utils.data import DataLoader
 
+def ParseArguments():
 
-def micro_calcification_reconstruction_dataset_test(output_dir, mode, num_epoch, batch_size, num_workers):
+    parser = argparse.ArgumentParser()
+
+
+    parser.add_argument('--output_dir',
+
+                        type=str,
+
+                        default='/home/groupprofzli/data1/dwz/data/Inbreast-dataset-cropped-pathches-connected-component-1/',
+
+                        help='Destination data dir.')
+
+    parser.add_argument('--mode',
+                        type=str,
+                        default='training',
+                        help='within training , validation or test')
+
+
+    parser.add_argument('--num_epoch',
+                        type=int,
+                        default=5,
+                        help='epoch for test')
+
+    parser.add_argument('--batch_size',
+                        type=int,
+                        default=480,
+                        help='the patch number in each batch')
+
+
+    parser.add_argument('--num_workers',
+                        type=int,
+                        default=24,
+                        help='')
+
+    args = parser.parse_args()
+
+
+
+    return args
+
+
+def micro_calcification_reconstruction_dataset_test(args):
     # remove the existing folder with the same name
-    if os.path.isdir(output_dir):
-        shutil.rmtree(output_dir)
+    if os.path.isdir(args.output_dir):
+        shutil.rmtree(args.output_dir)
 
     # create a new folder
-    os.mkdir(output_dir)
+    os.mkdir(args.output_dir)
 
     # create dataset for training
     training_dataset = MicroCalcificationDataset(data_root_dir=cfg.general.data_root_dir,
-                                                 mode=mode,
+                                                 mode=args.mode,
                                                  enable_random_sampling=False,
                                                  pos_to_neg_ratio=cfg.dataset.pos_to_neg_ratio,
                                                  image_channels=cfg.dataset.image_channels,
@@ -30,14 +72,14 @@ def micro_calcification_reconstruction_dataset_test(output_dir, mode, num_epoch,
 
     # create data loader for training
     training_data_loader = DataLoader(training_dataset,
-                                      batch_size=batch_size,
+                                      batch_size=args.batch_size,
                                       shuffle=True,
-                                      num_workers=num_workers)
+                                      num_workers=args.num_workers)
 
     # enumerating
-    for epoch_idx in range(num_epoch):
+    for epoch_idx in range(args.num_epoch):
         # create folder for this epoch
-        output_dir_epoch = os.path.join(output_dir, 'epoch_{0}'.format(epoch_idx))
+        output_dir_epoch = os.path.join(args.output_dir, 'epoch_{0}'.format(epoch_idx))
         os.mkdir(output_dir_epoch)
 
         print('-------------------------------------------------------------------------------------------------------')
@@ -102,11 +144,8 @@ def micro_calcification_reconstruction_dataset_test(output_dir, mode, num_epoch,
 
 if __name__ == '__main__':
     # saving results dir
-    output_dir = '/data/lars/results/MicroCalcificationDatasetTest/'
 
-    mode = 'training'  # 'training', 'validation' or 'test'
-    num_epoch = 5
-    batch_size = 480
-    num_workers = 24
 
-    micro_calcification_reconstruction_dataset_test(output_dir, mode, num_epoch, batch_size, num_workers)
+    args= ParseArguments()
+
+    micro_calcification_reconstruction_dataset_test(args)
