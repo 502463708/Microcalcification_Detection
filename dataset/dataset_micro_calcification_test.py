@@ -1,9 +1,8 @@
+import argparse
 import cv2
 import numpy as np
 import os
 import shutil
-import argparse
-
 from config.config_micro_calcification_reconstruction import cfg
 from dataset.dataset_micro_calcification import MicroCalcificationDataset
 from torch.utils.data import DataLoader
@@ -50,7 +49,7 @@ def ParseArguments():
     return args
 
 
-def micro_calcification_reconstruction_dataset_test(args):
+def MicroCalcificationReconstructionDatasetTest(args):
     # remove the existing folder with the same name
     if os.path.isdir(args.output_dir):
         shutil.rmtree(args.output_dir)
@@ -148,4 +147,4 @@ if __name__ == '__main__':
 
     args= ParseArguments()
 
-    micro_calcification_reconstruction_dataset_test(args)
+    MicroCalcificationReconstructionDatasetTest(args)
