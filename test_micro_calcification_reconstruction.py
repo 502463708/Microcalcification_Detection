@@ -1,29 +1,62 @@
+import argparse
 import cv2
 import numpy as np
 import os
+import shutil
 import SimpleITK as sitk
 import torch
 import torch.backends.cudnn as cudnn
 
 from config.config_micro_calcification_reconstruction import cfg
 from dataset.dataset_micro_calcification import MicroCalcificationDataset
+from logger.logger import Logger
 from metrics.metrics_reconstruction import MetricsReconstruction
 from net.vnet2d_v2 import VNet2d
 from torch.utils.data import DataLoader
 from time import time
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 cudnn.benchmark = True
 
-model_saving_dir = '/data/lars/models/20190830_uCs_reconstruction_ttestloss_dilation_radius_14/'
-epoch_idx = 470
-dataset = 'test'  # 'training', 'validation' or 'test'
 
-prob_threshold = 0.2  # residue[residue <= prob_threshold] = 0; residue[residue > prob_threshold] = 1
-area_threshold = 3.14 * 14 * 14 / 3  # connected components whose area < area_threshold will be discarded
-distance_threshold = 14  # candidates whose distance between calcification < distance_threshold can be a recalled one
+def ParseArguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_root_dir',
+                        type=str,
+                        default='/data/lars/data/Inbreast-dataset-cropped-pathches-connected-component-1/',
+                        help='Source data dir.')
+    parser.add_argument('--model_saving_dir',
+                        type=str,
+                        default='/data/lars/models/20190920_uCs_reconstruction_connected_1_ttestlossv2_default_dilation_radius_14/',
+                        help='Model saved dir.')
+    parser.add_argument('--epoch_idx',
+                        type=int,
+                        default=500,
+                        help='The epoch index of ckpt, set -1 to choose the best ckpt on validation set.')
+    parser.add_argument('--dataset_type',
+                        type=str,
+                        default='test',
+                        help='The type of dataset to be evaluated (training, validation, test).')
+    parser.add_argument('--prob_threshold',
+                        type=float,
+                        default=0.2,
+                        help='residue[residue <= prob_threshold] = 0; residue[residue > prob_threshold] = 1')
+    parser.add_argument('--area_threshold',
+                        type=float,
+                        default=3.14 * 14 * 14 / 3,
+                        help='Connected components whose area < area_threshold will be discarded.')
+    parser.add_argument('--distance_threshold',
+                        type=int,
+                        default=14,
+                        help='Candidates whose distance between calcification < distance_threshold is a recalled one.')
+    parser.add_argument('--batch_size',
+                        type=int,
+                        default=48,
+                        help='Batch size for evaluation.')
 
-batch_size = 48
+    args = parser.parse_args()
+
+    return args
 
 
 def save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor, prediction_residues_tensor,
@@ -86,26 +119,47 @@ def save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor
     return
 
 
-if __name__ == '__main__':
-    prediction_saving_dir = os.path.join(model_saving_dir, 'results_dataset_{}_epoch_{}'.format(dataset, epoch_idx))
-    if not os.path.exists(prediction_saving_dir):
-        os.mkdir(prediction_saving_dir)
+def TestMicroCalcificationReconstruction(args):
+    prediction_saving_dir = os.path.join(args.model_saving_dir,
+                                         'results_dataset_{}_epoch_{}'.format(args.dataset_type, args.epoch_idx))
+    visualization_saving_dir = os.path.join(prediction_saving_dir, 'qualitative_results')
+
+    # remove existing dir which has the same name and create clean dir
+    if os.path.exists(prediction_saving_dir):
+        shutil.rmtree(prediction_saving_dir)
+    os.mkdir(prediction_saving_dir)
+    os.mkdir(visualization_saving_dir)
+
+    # initialize logger
+    logger = Logger(prediction_saving_dir, 'quantitative_results.txt')
+    logger.write_and_print('Dataset: {}'.format(args.data_root_dir))
+    logger.write_and_print('Dataset type: {}'.format(args.dataset_type))
 
     # define the network
     net = VNet2d(num_in_channels=cfg.net.in_channels, num_out_channels=cfg.net.out_channels)
 
     # load the specified ckpt
-    ckpt_dir = os.path.join(model_saving_dir, 'ckpt')
-    ckpt_path = os.path.join(ckpt_dir, 'net_epoch_{}.pth'.format(epoch_idx))
+    ckpt_dir = os.path.join(args.model_saving_dir, 'ckpt')
+    # epoch_idx is specified -> load the specified ckpt
+    if args.epoch_idx >= 0:
+        ckpt_path = os.path.join(ckpt_dir, 'net_epoch_{}.pth'.format(args.epoch_idx))
+    # epoch_idx is not specified -> load the best ckpt
+    else:
+        saved_ckpt_list = os.listdir(ckpt_dir)
+        best_ckpt_filename = [best_ckpt_filename for best_ckpt_filename in saved_ckpt_list if
+                              'net_best_on_validation_set' in best_ckpt_filename][0]
+        ckpt_path = os.path.join(ckpt_dir, best_ckpt_filename)
 
+    # transfer net into gpu devices
     net = torch.nn.DataParallel(net).cuda()
     net.load_state_dict(torch.load(ckpt_path))
     net = net.eval()
-    print('Load ckpt: {0}...'.format(ckpt_path))
+
+    logger.write_and_print('Load ckpt: {0}...'.format(ckpt_path))
 
     # create dataset and data loader
     dataset = MicroCalcificationDataset(data_root_dir=cfg.general.data_root_dir,
-                                        mode=dataset,
+                                        mode=args.dataset_type,
                                         enable_random_sampling=False,
                                         pos_to_neg_ratio=cfg.dataset.pos_to_neg_ratio,
                                         image_channels=cfg.dataset.image_channels,
@@ -113,10 +167,10 @@ if __name__ == '__main__':
                                         dilation_radius=0,
                                         enable_data_augmentation=False)
     #
-    data_loader = DataLoader(dataset, batch_size=batch_size,
+    data_loader = DataLoader(dataset, batch_size=args.batch_size,
                              shuffle=False, num_workers=cfg.train.num_threads)
 
-    metrics = MetricsReconstruction(prob_threshold, area_threshold, distance_threshold)
+    metrics = MetricsReconstruction(args.prob_threshold, args.area_threshold, args.distance_threshold)
 
     calcification_num = 0
     recall_num = 0
@@ -141,18 +195,30 @@ if __name__ == '__main__':
         recall_num += recall_num_batch_level
         FP_num += FP_num_batch_level
 
-        print('The number of the annotated calcifications of this batch = {}'.format(calcification_num_batch_level))
-        print('The number of the recalled calcifications of this batch = {}'.format(recall_num_batch_level))
-        print('The number of the false positive calcifications of this batch = {}'.format(FP_num_batch_level))
-
         # print logging information
-        print('batch: {}, consuming time: {:.4f}s'.format(batch_idx, time() - start_time_for_batch))
-        print('-------------------------------------------------------------------------------------------------------')
+        logger.write_and_print(
+            'The number of the annotated calcifications of this batch = {}'.format(calcification_num_batch_level))
+        logger.write_and_print(
+            'The number of the recalled calcifications of this batch = {}'.format(recall_num_batch_level))
+        logger.write_and_print(
+            'The number of the false positive calcifications of this batch = {}'.format(FP_num_batch_level))
+        logger.write_and_print('batch: {}, consuming time: {:.4f}s'.format(batch_idx, time() - start_time_for_batch))
+        logger.write_and_print('--------------------------------------------------------------------------------------')
 
         save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor, prediction_residues_tensor,
                                           post_process_preds_np, pixel_level_labels_tensor,
-                                          pixel_level_labels_dilated_tensor, filenames, prediction_saving_dir)
+                                          pixel_level_labels_dilated_tensor, filenames, visualization_saving_dir)
 
-    print('The number of the annotated calcifications of this dataset = {}'.format(calcification_num))
-    print('The number of the recalled calcifications of this dataset = {}'.format(recall_num))
-    print('The number of the false positive calcifications of this dataset = {}'.format(FP_num))
+        logger.flush()
+
+    logger.write_and_print('The number of the annotated calcifications of this dataset = {}'.format(calcification_num))
+    logger.write_and_print('The number of the recalled calcifications of this dataset = {}'.format(recall_num))
+    logger.write_and_print('The number of the false positive calcifications of this dataset = {}'.format(FP_num))
+
+    return
+
+
+if __name__ == '__main__':
+    args = ParseArguments()
+
+    TestMicroCalcificationReconstruction(args)
