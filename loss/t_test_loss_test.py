@@ -1,9 +1,9 @@
+import argparse
 import os
 import time
 import torch
-import argparse
 
-from t_test_loss import TTestLoss
+from loss.t_test_loss import TTestLoss
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
@@ -41,7 +41,7 @@ def ParseArguments():
     return args
 
 
-def test_t_test_loss(args):
+def TestTTestLoss(args):
     for i in range(args.num_test):
         start_time = time.time()
         residues = torch.rand(args.batch_size, args.num_channels, args.height, args.width).cuda()
@@ -59,4 +59,4 @@ def test_t_test_loss(args):
 if __name__ == '__main__':
     args = ParseArguments()
 
-    test_t_test_loss(args)
+    TestTTestLoss(args)
