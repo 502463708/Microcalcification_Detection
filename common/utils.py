@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import os
 
 from skimage import measure
 
@@ -60,3 +61,30 @@ def post_process_residue(image_np, prob_threshold, area_threshold):
     post_processed_image_np[connected_components != 0] = 1
 
     return post_processed_image_np
+
+
+def get_ckpt_path(model_saving_dir, epoch_idx=-1):
+    """
+    Given a dir (where the model is saved) and an index (which ckpt is specified),
+    This function returns the absolute ckpt path
+    :param model_saving_dir:
+    :param epoch_idx:
+        default mode: epoch_idx = -1 -> return the best ckpt
+        specified mode: epoch_idx >= 0 -> return the specified ckpt
+    :return: absolute ckpt path
+    """
+    assert os.path.exists(model_saving_dir)
+    assert epoch_idx >= -1
+
+    ckpt_dir = os.path.join(model_saving_dir, 'ckpt')
+    # specified mode: epoch_idx is specified -> load the specified ckpt
+    if epoch_idx >= 0:
+        ckpt_path = os.path.join(ckpt_dir, 'net_epoch_{}.pth'.format(epoch_idx))
+    # default mode: epoch_idx is not specified -> load the best ckpt
+    else:
+        saved_ckpt_list = os.listdir(ckpt_dir)
+        best_ckpt_filename = [best_ckpt_filename for best_ckpt_filename in saved_ckpt_list if
+                              'net_best_on_validation_set' in best_ckpt_filename][0]
+        ckpt_path = os.path.join(ckpt_dir, best_ckpt_filename)
+
+    return ckpt_path
