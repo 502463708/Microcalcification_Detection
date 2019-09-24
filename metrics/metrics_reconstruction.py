@@ -2,6 +2,7 @@
 This file implements a class which can evaluate the recall and false positive
 """
 import numpy as np
+import torch
 
 from common.utils import post_process_residue
 from skimage import measure
@@ -38,16 +39,18 @@ class MetricsReconstruction(object):
         assert len(labels.shape) == 3  # shape: B, H, W
 
         # transfer the tensor into cpu device
-        if preds.device.type != 'cpu':
-            preds = preds.cpu().detach()
-        # transform the tensor into ndarray format
-        preds = preds.numpy()
+        if torch.is_tensor(preds):
+            if preds.device.type != 'cpu':
+                preds = preds.cpu().detach()
+            # transform the tensor into ndarray format
+            preds = preds.numpy()
 
         # transfer the tensor into cpu device
-        if labels.device.type != 'cpu':
-            labels = labels.cpu()
-        # transform the tensor into ndarray format
-        labels = labels.numpy()
+        if torch.is_tensor(labels):
+            if labels.device.type != 'cpu':
+                labels = labels.cpu()
+            # transform the tensor into ndarray format
+            labels = labels.numpy()
 
         # discard the batch channel
         preds = preds.squeeze(axis=1)
