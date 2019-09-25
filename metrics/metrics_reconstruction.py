@@ -25,6 +25,9 @@ class MetricsReconstruction(object):
         assert distance_threshold > 0
         self.distance_threshold = distance_threshold
 
+        # record metric on validation set for determining the best model to be saved
+        self.determine_saving_metric_on_validation_list = list()
+
         return
 
     def metric_batch_level(self, preds, labels):

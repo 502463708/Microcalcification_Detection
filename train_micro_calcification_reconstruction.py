@@ -6,6 +6,7 @@ import torch
 import torch.backends.cudnn as cudnn
 import visdom
 
+from common.utils import save_best_ckpt
 from config.config_micro_calcification_reconstruction import cfg
 from dataset.dataset_micro_calcification import MicroCalcificationDataset
 from metrics.metrics_reconstruction import MetricsReconstruction
@@ -145,6 +146,10 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
 
     # calculate loss of this epoch
     average_loss_of_this_epoch = np.array(loss_for_each_batch_list).mean()
+
+    # record metric on validation set for determining the best model to be saved
+    if not training:
+        metrics.determine_saving_metric_on_validation_list.append(recall_num_epoch_level - FP_num_epoch_level)
 
     if logger is not None:
         logger.write('{} of epoch {} finished'.format('training' if training else 'evaluating', epoch_idx))
@@ -305,6 +310,9 @@ if __name__ == '__main__':
 
         logger.flush()
 
-        # whether to save this model
+        # whether to save this model according to config
         if epoch_idx % cfg.train.save_epochs is 0:
             torch.save(net.state_dict(), os.path.join(ckpt_dir, 'net_epoch_{}.pth'.format(epoch_idx)))
+
+        # save this model in case that this is the currently best model on validation set
+        save_best_ckpt(metrics, net, ckpt_dir, epoch_idx)
