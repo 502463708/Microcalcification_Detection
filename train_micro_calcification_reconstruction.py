@@ -12,6 +12,7 @@ from metrics.metrics_reconstruction import MetricsReconstruction
 from logger.logger import Logger
 from loss.t_test_loss import TTestLoss
 from loss.t_test_loss_v2 import TTestLossV2
+from loss.t_test_loss_v3 import TTestLossV3
 from torch.utils.data import DataLoader
 from time import time
 
@@ -76,6 +77,9 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
             pixel_level_labels_dilated_tensor = pixel_level_labels_dilated_tensor.cuda()
             loss = loss_func(prediction_residues_tensor, image_level_labels_tensor, pixel_level_labels_dilated_tensor,
                              logger)
+        elif loss_func.get_name() == 'TTestLossV3':
+            pixel_level_labels_dilated_tensor = pixel_level_labels_dilated_tensor.cuda()
+            loss = loss_func(prediction_residues_tensor, pixel_level_labels_dilated_tensor)
 
         loss_for_each_batch_list.append(loss.item())
 
@@ -262,11 +266,13 @@ if __name__ == '__main__':
                                         shuffle=True, num_workers=cfg.train.num_threads)
 
     # define loss function
-    assert cfg.loss.name in ['TTestLoss', 'TTestLossV2']
+    assert cfg.loss.name in ['TTestLoss', 'TTestLossV2', 'TTestLossV3']
     if cfg.loss.name == 'TTestLoss':
         loss_func = TTestLoss(beta=cfg.loss.beta, lambda_p=cfg.loss.lambda_p, lambda_n=cfg.loss.lambda_n)
     elif cfg.loss.name == 'TTestLossV2':
         loss_func = TTestLossV2(beta=cfg.loss.beta, lambda_p=cfg.loss.lambda_p, lambda_n=cfg.loss.lambda_n)
+    elif cfg.loss.name == 'TTestLossV3':
+        loss_func = TTestLossV3(beta=cfg.loss.beta, lambda_p=cfg.loss.lambda_p, lambda_n=cfg.loss.lambda_n)
 
     # setup optimizer
     optimizer = torch.optim.Adam(net.parameters(), lr=cfg.lr_scheduler.lr)
