@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import os
+import torch
 
 from skimage import measure
 
@@ -88,3 +89,29 @@ def get_ckpt_path(model_saving_dir, epoch_idx=-1):
         ckpt_path = os.path.join(ckpt_dir, best_ckpt_filename)
 
     return ckpt_path
+
+
+def save_best_ckpt(metrics, net, ckpt_dir, epoch_idx):
+    """
+    This function can discriminatively save this ckpt in case that it is the currently best ckpt on validation set
+    :param metrics:
+    :param net:
+    :param ckpt_dir:
+    :param epoch_idx:
+    :return:
+    """
+
+    is_best_ckpt = metrics.determine_saving_metric_on_validation_list[-1] == max(
+        metrics.determine_saving_metric_on_validation_list)
+    if is_best_ckpt:
+        # firstly remove the last saved best ckpt
+        saved_ckpt_list = os.listdir(ckpt_dir)
+        for saved_ckpt_filename in saved_ckpt_list:
+            if 'net_best_on_validation_set' in saved_ckpt_filename:
+                os.remove(os.path.join(ckpt_dir, saved_ckpt_filename))
+
+        # save the current best ckpt
+        torch.save(net.state_dict(),
+                   os.path.join(ckpt_dir, 'net_best_on_validation_set_epoch_{}.pth'.format(epoch_idx)))
+
+    return

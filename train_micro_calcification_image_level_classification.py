@@ -6,6 +6,7 @@ import torch
 import torch.backends.cudnn as cudnn
 import visdom
 
+from common.utils import save_best_ckpt
 from config.config_micro_calcification_image_level_classification import cfg
 from dataset.dataset_micro_calcification import MicroCalcificationDataset
 from metrics.metrics_image_level_classification import MetricsImageLevelClassification
@@ -305,14 +306,4 @@ if __name__ == '__main__':
             torch.save(net.state_dict(), os.path.join(ckpt_dir, 'net_epoch_{}.pth'.format(epoch_idx)))
 
         # save this model in case that this is the currently best model on validation set
-        is_best_ckpt_on_validation_set = metrics.determine_saving_metric_on_validation_list[-1] == max(
-            metrics.determine_saving_metric_on_validation_list)
-        if is_best_ckpt_on_validation_set:
-            saved_ckpt_list = os.listdir(ckpt_dir)
-            # remove the last saved best model
-            for saved_ckpt_filename in saved_ckpt_list:
-                if 'net_best_on_validation_set' in saved_ckpt_filename:
-                    os.remove(os.path.join(ckpt_dir, saved_ckpt_filename))
-            # save the current best model
-            torch.save(net.state_dict(),
-                       os.path.join(ckpt_dir, 'net_best_on_validation_set_epoch_{}.pth'.format(epoch_idx)))
+        save_best_ckpt(metrics, net, ckpt_dir, epoch_idx)
