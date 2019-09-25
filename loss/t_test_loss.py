@@ -44,7 +44,7 @@ class TTestLoss(nn.Module):
             var_residues_negative.item())
 
         if logger is not None:
-            logger.write(log_message)
+            logger.write_and_print(log_message)
         else:
             print(log_message)
 
