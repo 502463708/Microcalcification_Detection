@@ -11,8 +11,8 @@ cfg = __C
 
 # general parameters
 __C.general = {}
-__C.general.data_root_dir = '/data/lars/data/Inbreast-dataset-cropped-pathches-connected-component-1/'
-__C.general.saving_dir = '/data/lars/models/20190921_uCs_reconstruction_connected_1_ttestlossv2_lambdap_0_lambdan_0_dilation_radius_14/'
+__C.general.data_root_dir = '/data/lars/data/Inbreast-dataset-cropped-pathches/'
+__C.general.saving_dir = '/data/lars/models/20190925_uCs_reconstruction_ttestlossv3_default_dilation_radius_7/'
 __C.general.cuda_device_idx = '6, 7'  # specify the index of the gpu devices to be occupied
 
 # dataset parameters
@@ -21,7 +21,7 @@ __C.dataset.image_channels = 1  # this is a single-channel image
 __C.dataset.cropping_size = [112, 112]  # [H, W] (pixel)
 __C.dataset.enable_random_sampling = True  # True: randomly sample only during training
 __C.dataset.pos_to_neg_ratio = 1  # hyper-parameter of randomly sampling
-__C.dataset.dilation_radius = 14  # pixel-level label to be dilated, 0 -> will not be dilated
+__C.dataset.dilation_radius = 7  # pixel-level label to be dilated, 0 -> will not be dilated
 
 # data augmentation parameters
 __C.dataset.augmentation = {}
@@ -31,10 +31,10 @@ __C.dataset.augmentation.enable_horizontal_flip = True
 
 # loss
 __C.loss = {}
-__C.loss.name = 'TTestLossV2'  # only 'TTestLoss' or 'TTestLossV2' implemented
+__C.loss.name = 'TTestLossV3'  # only 'TTestLoss', 'TTestLossV2', 'TTestLossV3' is supported now
 __C.loss.beta = 0.8
-__C.loss.lambda_p = 0
-__C.loss.lambda_n = 0
+__C.loss.lambda_p = 1
+__C.loss.lambda_n = 0.1
 
 # net
 __C.net = {}
