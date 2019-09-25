@@ -55,6 +55,7 @@ def ParseArguments():
 
     return args
 
+
 def TestTTestLossV3(args):
     for i in range(args.num_test):
         loss_func = TTestLossV3(args.beta, args.lambda_p, args.lambda_n)
@@ -62,14 +63,10 @@ def TestTTestLossV3(args):
         start_time = time.time()
         residues = torch.rand(args.batch_size, args.num_channels, args.height, args.width).cuda()
 
-        # image_level_labels = torch.rand(args.batch_size, 1).cuda()
-        # image_level_labels[image_level_labels <= 0.5] = 0
-        # image_level_labels[image_level_labels > 0.5] = 1
-        # image_level_labels = image_level_labels
-
         pixel_level_labels = torch.rand(args.batch_size, args.height, args.width).cuda()
         pixel_level_labels[pixel_level_labels <= 0.5] = 0
         pixel_level_labels[pixel_level_labels > 0.5] = 1
+        pixel_level_labels = pixel_level_labels.long()
 
         loss = loss_func(residues, pixel_level_labels)
         print('time:', time.time() - start_time, 'loss: ', loss.item())
@@ -79,6 +76,5 @@ def TestTTestLossV3(args):
 
 
 if __name__ == '__main__':
-
-    args=ParseArguments()
+    args = ParseArguments()
     TestTTestLossV3(args)
