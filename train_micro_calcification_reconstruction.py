@@ -80,7 +80,7 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
                              logger)
         elif loss_func.get_name() == 'TTestLossV3':
             pixel_level_labels_dilated_tensor = pixel_level_labels_dilated_tensor.cuda()
-            loss = loss_func(prediction_residues_tensor, pixel_level_labels_dilated_tensor)
+            loss = loss_func(prediction_residues_tensor, pixel_level_labels_dilated_tensor, logger)
 
         loss_for_each_batch_list.append(loss.item())
 
