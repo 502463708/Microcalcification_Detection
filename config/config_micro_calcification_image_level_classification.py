@@ -63,5 +63,5 @@ __C.visdom.update_batches = 5  # update images displayed in visdom every x batch
 
 
 '''
-One NVDIA TITAN XP with 12 Mb memory can bear a training load with batch_size=??? 
+One NVDIA TITAN XP with 12 Mb memory can bear a training load with batch_size=1024 
 '''
