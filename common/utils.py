@@ -115,3 +115,29 @@ def save_best_ckpt(metrics, net, ckpt_dir, epoch_idx):
                    os.path.join(ckpt_dir, 'net_best_on_validation_set_epoch_{}.pth'.format(epoch_idx)))
 
     return
+
+
+def extract_classification_preds_channel(preds, channel_idx, use_softmax=True, keep_dim=True):
+    """
+
+    :param preds:
+    :param channel_idx:
+    :param use_softmax:
+    :param keep_dim:
+    :return:
+    """
+    assert torch.is_tensor(preds)
+    assert len(preds.shape) == 4
+    assert channel_idx >= 0
+
+    if use_softmax:
+        preds = torch.softmax(preds, dim=1)
+
+    extracted_preds = preds[:, channel_idx, :, :]
+
+    if keep_dim:
+        extracted_preds = extracted_preds.unsqueeze(dim=1)
+        assert len(preds.shape) == len(extracted_preds.shape)
+
+    return extracted_preds
+
