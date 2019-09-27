@@ -44,7 +44,7 @@ __C.net.out_channels = 2
 __C.train = {}
 __C.train.num_epochs = 501  # number of training epoch
 __C.train.save_epochs = 50  # save ckpt every x epochs
-__C.train.batch_size = 260
+__C.train.batch_size = 250
 __C.train.num_threads = 8
 
 # learning rate scheduler
