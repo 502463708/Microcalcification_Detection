@@ -13,7 +13,7 @@ cfg = __C
 # general parameters
 __C.general = {}
 __C.general.data_root_dir = '/data/lars/data/Inbreast-dataset-cropped-pathches/'
-__C.general.saving_dir = '/data/lars/models/20190926_uCs_pixel_level_classification_CE_default_dilation_radius_7/'
+__C.general.saving_dir = '/data/lars/models/20190927_uCs_pixel_level_classification_CE_default_dilation_radius_0/'
 __C.general.cuda_device_idx = '7'  # specify the index of the gpu devices to be occupied
 
 # dataset parameters
@@ -22,7 +22,7 @@ __C.dataset.image_channels = 1  # this is a single-channel image
 __C.dataset.cropping_size = [112, 112]  # [H, W] (pixel)
 __C.dataset.enable_random_sampling = True  # True: randomly sample only during training
 __C.dataset.pos_to_neg_ratio = 1  # hyper-parameter of randomly sampling
-__C.dataset.dilation_radius = 7  # pixel-level label to be dilated, 0 -> will not be dilated
+__C.dataset.dilation_radius = 0  # pixel-level label to be dilated, 0 -> will not be dilated
 
 # data augmentation parameters
 __C.dataset.augmentation = {}
