@@ -18,7 +18,7 @@ from net.vnet2d_v2 import VNet2d
 from torch.utils.data import DataLoader
 from time import time
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 cudnn.benchmark = True
 
 
@@ -26,7 +26,7 @@ def ParseArguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_root_dir',
                         type=str,
-                        default='/data/lars/data/Inbreast-dataset-cropped-pathches-connected-component-1/',
+                        default='/data/lars/data/Inbreast-dataset-cropped-pathches/',
                         help='The source data dir.')
     parser.add_argument('--dataset_type',
                         type=str,
@@ -38,27 +38,31 @@ def ParseArguments():
                         help='The predicted results saving dir.')
     parser.add_argument('--reconstruction_model_saving_dir',
                         type=str,
-                        default='/data/lars/models/20190920_uCs_reconstruction_connected_1_ttestlossv2_default_dilation_radius_14/',
+                        default='/data/lars/models/20190925_uCs_reconstruction_ttestlossv3_default_dilation_radius_7',
                         help='The reconstruction model saved dir.')
     parser.add_argument('--reconstruction_epoch_idx',
                         type=int,
-                        default=500,
+                        default=-1,
                         help='The epoch index of ckpt, set -1 to choose the best ckpt on validation set.')
     parser.add_argument('--classification_model_saving_dir',
                         type=str,
-                        default='/data/lars/models/20190923_uCs_image_level_classification_connected_1_CE_default/',
+                        default='/data/lars/models/20190926_uCs_image_level_classification_CE_default/',
                         help='The classification model saved dir.')
     parser.add_argument('--classification_epoch_idx',
                         type=int,
                         default=-1,
                         help='The epoch index of ckpt, set -1 to choose the best ckpt on validation set.')
+    parser.add_argument('--dilation_radius',
+                        type=int,
+                        default=7,
+                        help='The specified dilation_radius when training.')
     parser.add_argument('--prob_threshold',
                         type=float,
                         default=0.2,
                         help='residue[residue <= prob_threshold] = 0; residue[residue > prob_threshold] = 1')
     parser.add_argument('--area_threshold',
                         type=float,
-                        default=3.14 * 14 * 14 / 3,
+                        default=3.14 * 12 * 12 / 3,
                         help='Connected components whose area < area_threshold will be discarded.')
     parser.add_argument('--distance_threshold',
                         type=int,
@@ -222,7 +226,7 @@ def TestMicroCalcificationDetectionPatchLevel(args):
                                         pos_to_neg_ratio=r_cfg.dataset.pos_to_neg_ratio,
                                         image_channels=r_cfg.dataset.image_channels,
                                         cropping_size=r_cfg.dataset.cropping_size,
-                                        dilation_radius=0,
+                                        dilation_radius=args.dilation_radius,
                                         enable_data_augmentation=False)
     #
     data_loader = DataLoader(dataset, batch_size=args.batch_size,

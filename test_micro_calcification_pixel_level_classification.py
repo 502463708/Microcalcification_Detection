@@ -16,7 +16,7 @@ from net.vnet2d_v3 import VNet2d
 from torch.utils.data import DataLoader
 from time import time
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+os.environ['CUDA_VISIBLE_DEVICES'] = '6'
 cudnn.benchmark = True
 
 
@@ -38,10 +38,14 @@ def ParseArguments():
                         type=str,
                         default='test',
                         help='The type of dataset to be evaluated (training, validation, test).')
+    parser.add_argument('--dilation_radius',
+                        type=int,
+                        default=7,
+                        help='The specified dilation_radius when training.')
     parser.add_argument('--prob_threshold',
                         type=float,
                         default=0.5,
-                        help='residue[residue <= prob_threshold] = 0; residue[residue > prob_threshold] = 1')
+                        help='residue[residue <= prob_threshold] = 0; residue[residue > prob_threshold] = 1.')
     parser.add_argument('--area_threshold',
                         type=float,
                         default=3.14 * 7 * 7 / 3,
@@ -115,7 +119,8 @@ def save_tensor_in_png_and_nii_format(images_tensor, predictions_tensor, post_pr
 
 def TestMicroCalcificationReconstruction(args):
     prediction_saving_dir = os.path.join(args.model_saving_dir,
-                                         'results_dataset_{}_epoch_{}'.format(args.dataset_type, args.epoch_idx))
+                                         'pixel_level_classification_results_dataset_{}_epoch_{}'.format(
+                                             args.dataset_type, args.epoch_idx))
     visualization_saving_dir = os.path.join(prediction_saving_dir, 'qualitative_results')
 
     # remove existing dir which has the same name and create clean dir
@@ -158,7 +163,7 @@ def TestMicroCalcificationReconstruction(args):
                                         pos_to_neg_ratio=cfg.dataset.pos_to_neg_ratio,
                                         image_channels=cfg.dataset.image_channels,
                                         cropping_size=cfg.dataset.cropping_size,
-                                        dilation_radius=0,
+                                        dilation_radius=args.dilation_radius,
                                         enable_data_augmentation=False)
     #
     data_loader = DataLoader(dataset, batch_size=args.batch_size,

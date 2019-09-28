@@ -15,7 +15,7 @@ from net.vnet2d_v2 import VNet2d
 from torch.utils.data import DataLoader
 from time import time
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+os.environ['CUDA_VISIBLE_DEVICES'] = '6'
 cudnn.benchmark = True
 
 
@@ -23,27 +23,31 @@ def ParseArguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_root_dir',
                         type=str,
-                        default='/data/lars/data/Inbreast-dataset-cropped-pathches-connected-component-1/',
+                        default='/data/lars/data/Inbreast-dataset-cropped-pathches/',
                         help='Source data dir.')
     parser.add_argument('--model_saving_dir',
                         type=str,
-                        default='/data/lars/models/20190920_uCs_reconstruction_connected_1_ttestlossv2_default_dilation_radius_14/',
+                        default='/data/lars/models/20190925_uCs_reconstruction_ttestlossv3_default_dilation_radius_7',
                         help='Model saved dir.')
     parser.add_argument('--epoch_idx',
                         type=int,
-                        default=500,
+                        default=-1,
                         help='The epoch index of ckpt, set -1 to choose the best ckpt on validation set.')
     parser.add_argument('--dataset_type',
                         type=str,
                         default='test',
                         help='The type of dataset to be evaluated (training, validation, test).')
+    parser.add_argument('--dilation_radius',
+                        type=int,
+                        default=7,
+                        help='The specified dilation_radius when training.')
     parser.add_argument('--prob_threshold',
                         type=float,
                         default=0.2,
                         help='residue[residue <= prob_threshold] = 0; residue[residue > prob_threshold] = 1')
     parser.add_argument('--area_threshold',
                         type=float,
-                        default=3.14 * 14 * 14 / 3,
+                        default=3.14 * 7 * 7 / 3,
                         help='Connected components whose area < area_threshold will be discarded.')
     parser.add_argument('--distance_threshold',
                         type=int,
@@ -121,7 +125,8 @@ def save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor
 
 def TestMicroCalcificationReconstruction(args):
     prediction_saving_dir = os.path.join(args.model_saving_dir,
-                                         'results_dataset_{}_epoch_{}'.format(args.dataset_type, args.epoch_idx))
+                                         'reconstruction_results_dataset_{}_epoch_{}'.format(args.dataset_type,
+                                                                                             args.epoch_idx))
     visualization_saving_dir = os.path.join(prediction_saving_dir, 'qualitative_results')
 
     # remove existing dir which has the same name and create clean dir
@@ -164,7 +169,7 @@ def TestMicroCalcificationReconstruction(args):
                                         pos_to_neg_ratio=cfg.dataset.pos_to_neg_ratio,
                                         image_channels=cfg.dataset.image_channels,
                                         cropping_size=cfg.dataset.cropping_size,
-                                        dilation_radius=0,
+                                        dilation_radius=args.dilation_radius,
                                         enable_data_augmentation=False)
     #
     data_loader = DataLoader(dataset, batch_size=args.batch_size,
