@@ -31,7 +31,7 @@ def dilate_image_level_label(image_level_label, dilation_radius):
     return dilated_image_level_label
 
 
-def post_process_residue(image_np, prob_threshold, area_threshold):
+def post_process_residue(image_np, prob_threshold=0, area_threshold=0):
     """
     This function implements the post-process for the residue, including
     the following 2 steps:
@@ -43,21 +43,26 @@ def post_process_residue(image_np, prob_threshold, area_threshold):
     :return:
     """
     assert len(image_np.shape) == 2
+    assert prob_threshold >= 0
+    assert area_threshold >= 0
 
-    image_np[image_np <= prob_threshold] = 0
-    image_np[image_np > prob_threshold] = 1
+    # turned into a binary mask
+    if prob_threshold > 0:
+        image_np[image_np <= prob_threshold] = 0
+        image_np[image_np > prob_threshold] = 1
 
+    # calculate the property for each connected component
     connected_components = measure.label(image_np, connectivity=2)
-
     props = measure.regionprops(connected_components)
-
     connected_component_num = len(props)
 
-    if connected_component_num > 0:
+    # remove the tiny connected components
+    if area_threshold > 0 and connected_component_num > 0:
         for connected_component_idx in range(connected_component_num):
             if props[connected_component_idx].area < area_threshold:
                 connected_components[connected_components == connected_component_idx + 1] = 0
 
+    # generate post_processed_image_np
     post_processed_image_np = np.zeros_like(image_np)
     post_processed_image_np[connected_components != 0] = 1
 
