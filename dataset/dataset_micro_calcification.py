@@ -5,12 +5,14 @@ import random
 import torch
 
 from common.utils import dilate_image_level_label
+from skimage import measure
 from torch.utils.data import Dataset
 
 
 class MicroCalcificationDataset(Dataset):
     def __init__(self, data_root_dir, mode, enable_random_sampling, pos_to_neg_ratio, image_channels, cropping_size,
-                 dilation_radius, enable_data_augmentation, enable_vertical_flip=False, enable_horizontal_flip=False):
+                 dilation_radius, calculate_micro_calcification_number, enable_data_augmentation,
+                 enable_vertical_flip=False, enable_horizontal_flip=False):
 
         super(MicroCalcificationDataset, self).__init__()
 
@@ -53,6 +55,10 @@ class MicroCalcificationDataset(Dataset):
         assert dilation_radius >= 0
         assert dilation_radius == int(dilation_radius)
         self.dilation_radius = dilation_radius
+
+        # calculate_micro_calcification_number must be a bool variable
+        assert isinstance(calculate_micro_calcification_number, bool)
+        self.calculate_micro_calcification_number = calculate_micro_calcification_number
 
         # enable_data_augmentation is a bool variable
         assert isinstance(enable_data_augmentation, bool)
@@ -139,30 +145,47 @@ class MicroCalcificationDataset(Dataset):
         else:
             pixel_level_label_dilated_np = pixel_level_label_np
 
+        # calculate the number of the annotated micro calcifications
+        if self.calculate_micro_calcification_number:
+            # when it is a positive patch
+            if image_level_label[0] == 1:
+                # generate the connected component matrix
+                connected_components = measure.label(pixel_level_label_np, connectivity=2)
+                micro_calcification_number = [connected_components.max()]
+            # when it is a negative patch
+            else:
+                micro_calcification_number = [0]
+        else:
+            micro_calcification_number = [-1]
+
         # convert ndarray to tensor
         #
         # image tensor
         image_tensor = torch.FloatTensor(image_np).unsqueeze(dim=0)  # shape: [C, H, W]
         #
-        # pixel-level label
+        # pixel-level label tensor
         pixel_level_label_tensor = torch.LongTensor(pixel_level_label_np)  # shape: [H, W]
         #
-        # dilated pixel-level label
+        # dilated pixel-level label tensor
         pixel_level_label_dilated_tensor = torch.LongTensor(pixel_level_label_dilated_np)  # shape: [H, W]
         #
-        # label tensor
+        # image-level label tensor
         image_level_label_tensor = torch.LongTensor(image_level_label)  # shape: [1]
+        #
+        # micro calcification number label tensor
+        micro_calcification_number_label_tensor = torch.LongTensor(micro_calcification_number)  # shape: [1]
 
         assert len(image_tensor.shape) == 3
         assert len(pixel_level_label_tensor.shape) == 2
         assert pixel_level_label_tensor.shape == pixel_level_label_dilated_tensor.shape
         assert len(image_level_label_tensor.shape) == 1
+        assert len(micro_calcification_number_label_tensor.shape) == 1
         assert image_tensor.shape[0] == self.image_channels
         assert image_tensor.shape[1] == pixel_level_label_tensor.shape[0] == self.cropping_size[0]
         assert image_tensor.shape[2] == pixel_level_label_tensor.shape[1] == self.cropping_size[1]
 
         return image_tensor, pixel_level_label_tensor, pixel_level_label_dilated_tensor, image_level_label_tensor, \
-               filename
+               micro_calcification_number_label_tensor, filename
 
     def __len__(self):
 

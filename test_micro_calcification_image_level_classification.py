@@ -50,7 +50,7 @@ def TestMicroCalcificationImageLevelClassification(args):
     start_time_for_epoch = time()
 
     prediction_saving_dir = os.path.join(args.model_saving_dir,
-                                         'results_dataset_{}_epoch_{}'.format(args.dataset_type, args.epoch_idx))
+                                         'image_level_classification_results_dataset_{}_epoch_{}'.format(args.dataset_type, args.epoch_idx))
     visualization_saving_dir = os.path.join(prediction_saving_dir, 'qualitative_results')
 
     TPs_saving_dir = os.path.join(visualization_saving_dir, 'TPs')
@@ -102,7 +102,8 @@ def TestMicroCalcificationImageLevelClassification(args):
                                         pos_to_neg_ratio=cfg.dataset.pos_to_neg_ratio,
                                         image_channels=cfg.dataset.image_channels,
                                         cropping_size=cfg.dataset.cropping_size,
-                                        dilation_radius=0,
+                                        dilation_radius=cfg.dataset.dilation_radius,
+                                        calculate_micro_calcification_number=cfg.dataset.calculate_micro_calcification_number,
                                         enable_data_augmentation=False)
 
     data_loader = DataLoader(dataset, batch_size=args.batch_size,
@@ -115,7 +116,7 @@ def TestMicroCalcificationImageLevelClassification(args):
     FPs_epoch_level = 0
     FNs_epoch_level = 0
 
-    for batch_idx, (images_tensor, pixel_level_labels_tensor, _, image_level_labels_tensor, filenames) in enumerate(
+    for batch_idx, (images_tensor, pixel_level_labels_tensor, _, image_level_labels_tensor, _, filenames) in enumerate(
             data_loader):
         # start time of this batch
         start_time_for_batch = time()
