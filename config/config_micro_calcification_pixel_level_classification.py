@@ -23,6 +23,7 @@ __C.dataset.cropping_size = [112, 112]  # [H, W] (pixel)
 __C.dataset.enable_random_sampling = True  # True: randomly sample only during training
 __C.dataset.pos_to_neg_ratio = 1  # hyper-parameter of randomly sampling
 __C.dataset.dilation_radius = 0  # pixel-level label to be dilated, 0 -> will not be dilated
+__C.dataset.calculate_micro_calcification_number = False  # indicating whether calculate the number of calcification
 
 # data augmentation parameters
 __C.dataset.augmentation = {}

@@ -7,24 +7,19 @@ from config.config_micro_calcification_reconstruction import cfg
 from dataset.dataset_micro_calcification import MicroCalcificationDataset
 from torch.utils.data import DataLoader
 
-def ParseArguments():
 
+def ParseArguments():
     parser = argparse.ArgumentParser()
 
-
     parser.add_argument('--output_dir',
-
                         type=str,
-
-                        default='/home/groupprofzli/data1/dwz/data/Inbreast-dataset-cropped-pathches-connected-component-1/',
-
+                        default='/data/lars/data/Inbreast-dataset-cropped-pathches/',
                         help='Destination data dir.')
 
     parser.add_argument('--mode',
                         type=str,
                         default='training',
                         help='within training , validation or test')
-
 
     parser.add_argument('--num_epoch',
                         type=int,
@@ -36,15 +31,12 @@ def ParseArguments():
                         default=480,
                         help='the patch number in each batch')
 
-
     parser.add_argument('--num_workers',
                         type=int,
                         default=24,
                         help='')
 
     args = parser.parse_args()
-
-
 
     return args
 
@@ -65,6 +57,7 @@ def MicroCalcificationReconstructionDatasetTest(args):
                                                  image_channels=cfg.dataset.image_channels,
                                                  cropping_size=cfg.dataset.cropping_size,
                                                  dilation_radius=cfg.dataset.dilation_radius,
+                                                 calculate_micro_calcification_number=cfg.dataset.calculate_micro_calcification_number,
                                                  enable_data_augmentation=cfg.dataset.augmentation.enable_data_augmentation,
                                                  enable_vertical_flip=cfg.dataset.augmentation.enable_vertical_flip,
                                                  enable_horizontal_flip=cfg.dataset.augmentation.enable_horizontal_flip)
@@ -88,7 +81,7 @@ def MicroCalcificationReconstructionDatasetTest(args):
         positive_patch_num_for_this_epoch = 0
         negative_patch_num_for_this_epoch = 0
 
-        for batch_idx, (images_tensor, _, _, image_level_labels_tensor, filenames) in enumerate(training_data_loader):
+        for batch_idx, (images_tensor, _, _, image_level_labels_tensor, _, filenames) in enumerate(training_data_loader):
             # create folder for this batch
             output_dir_batch = os.path.join(output_dir_epoch, 'batch_{0}'.format(batch_idx))
             os.mkdir(output_dir_batch)
@@ -144,7 +137,6 @@ def MicroCalcificationReconstructionDatasetTest(args):
 if __name__ == '__main__':
     # saving results dir
 
-
-    args= ParseArguments()
+    args = ParseArguments()
 
     MicroCalcificationReconstructionDatasetTest(args)
