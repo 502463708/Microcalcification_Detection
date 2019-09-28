@@ -56,7 +56,7 @@ __C.lr_scheduler.gamma = 0.95  # the learning rate decay
 # the metrics related parameters
 __C.metrics = {}
 __C.metrics.prob_threshold = 0.5  # preds[preds <= prob_threshold] = 0; preds[preds > prob_threshold] = 1
-__C.metrics.area_threshold = 3.14 * 7 * 7 / 3  # connected components whose area < area_threshold will be discarded
+__C.metrics.area_threshold = 0  # connected components whose area < area_threshold will be discarded
 __C.metrics.distance_threshold = 14  # candidates (distance between calcification < distance_threshold) is recalled
 
 # the visdom related parameters
