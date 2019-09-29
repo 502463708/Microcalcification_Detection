@@ -7,7 +7,7 @@ import shutil
 from skimage import measure
 
 
-class DatasetSplit:
+class PatchLevelDatasetSelect:
     def __init__(self, data_root_dir, connected_component_threshold, output_dir, enable_random=False,
                  training_ratio=3, validation_ratio=1, test_ratio=1):
         assert os.path.isdir(data_root_dir), '{} does not exist'.format(data_root_dir)
