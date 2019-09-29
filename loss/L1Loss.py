@@ -23,9 +23,6 @@ class L1Loss(nn.Module):
         if labels_num.device.type != 'cuda':
             pixel_level_labels = labels_num.cuda()
 
-
-
-
         loss = self.loss_func(preds_num, labels_num)
 
         return loss
