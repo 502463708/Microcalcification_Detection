@@ -24,30 +24,27 @@ dataset = 'test'  # 'training', 'validation' or 'test'
 unloader = transforms.ToPILImage()
 batch_size = 48
 
-
-class CAM_Funtion():
-
-  def hook_feature(self,module, input, output):
-      features_blobs.append(output.data.cpu().numpy())
+features_blobs = []
+def hook_feature(self,module, input, output):
+    features_blobs.append(output.data.cpu().numpy())
 
 
-  def returnCAM(self,feature_conv, weight_softmax, class_idx):
-      # generate the class activation maps upsample to 256x256
-      size_upsample = (256, 256)
-      bz, nc, h, w = feature_conv.shape
-      output_cam = []
-      for idx in class_idx:
-          cam = weight_softmax[idx].dot(feature_conv.reshape((nc, h * w)))
-          cam = cam.reshape(h, w)
-          cam = cam - np.min(cam)
-          cam_img = cam / np.max(cam)
-          cam_img = np.uint8(255 * cam_img)
-          output_cam.append(cv2.resize(cam_img, size_upsample))
-      return output_cam
+def returnCAM(self,feature_conv, weight_softmax, class_idx):
+    # generate the class activation maps upsample to 256x256
+    size_upsample = (256, 256)
+    bz, nc, h, w = feature_conv.shape
+    output_cam = []
+    for idx in class_idx:
+        cam = weight_softmax[idx].dot(feature_conv.reshape((nc, h * w)))
+        cam = cam.reshape(h, w)
+        cam = cam - np.min(cam)
+        cam_img = cam / np.max(cam)
+        cam_img = np.uint8(255 * cam_img)
+        output_cam.append(cv2.resize(cam_img, size_upsample))
+    return output_cam
 
 def CAMProceed(net,image_np_input):
-  features_blobs = []
-  net._modules.get('layer3').register_forward_hook(CAM_Funtion.hook_feature)
+  net._modules.get('layer3').register_forward_hook(hook_feature)
   params = list(net.parameters())
   weight_softmax = np.squeeze(params[-2].data.cpu().numpy())
   normalize = transforms.Normalize(
@@ -68,7 +65,7 @@ def CAMProceed(net,image_np_input):
   h_x = F.softmax(logit, dim=1).data.squeeze()
   probs, idx = h_x.sort(0, True)
   idx = idx.cpu().numpy()
-  CAMs = CAM_Funtion.returnCAM(features_blobs[0], weight_softmax, [idx[0]])
+  CAMs = returnCAM(features_blobs[0], weight_softmax, [idx[0]])
   # render the CAM and output
   img = cv2.imread('test.png')
   height, width, _ = img.shape
@@ -184,7 +181,8 @@ if __name__ == '__main__':
                 prediction_saving_dir, flag_2_dir_mapping[classification_flag])
 
             #Function To generate cam
-            result = CAMProceed(net,image_np)
+            if cfg.CAM:
+              result = CAMProceed(net,image_np)
 
             cv2.imwrite(os.path.join(saving_dir_of_this_patch, filename.replace('.png', '_image.png')),
                         image_np)

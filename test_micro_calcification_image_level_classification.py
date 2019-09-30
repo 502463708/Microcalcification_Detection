@@ -93,6 +93,7 @@ def TestMicroCalcificationImageLevelClassification(args):
     net.load_state_dict(torch.load(ckpt_path))
     net = net.eval()
 
+
     logger.write_and_print('Load ckpt: {0}...'.format(ckpt_path))
 
     # create dataset and data loader
