@@ -10,6 +10,9 @@ from easydict import EasyDict as edict
 __C = edict()
 cfg = __C
 
+# return CAM or not
+__C.general = False;
+
 # general parameters
 __C.general = {}
 __C.general.data_root_dir = '/data/lars/data/Inbreast-dataset-cropped-pathches/'
