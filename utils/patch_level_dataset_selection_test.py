@@ -1,6 +1,6 @@
 import argparse
 
-from utils.patch_level_dataset_select import PatchLevelDatasetSelect
+from utils.patch_level_dataset_selection import PatchLevelDatasetSelection
 
 
 def ParseArguments():
@@ -23,9 +23,9 @@ def ParseArguments():
     return args
 
 
-def TestDadasetSplit(args):
-    dataset_split_obj = PatchLevelDatasetSelect(args.data_root_dir, args.connected_component_threshold, args.output_dir)
-    dataset_split_obj.run()
+def TestPatchLevelDatasetSelection(args):
+    obj = PatchLevelDatasetSelection(args.data_root_dir, args.connected_component_threshold, args.output_dir)
+    obj.run()
 
     return
 
@@ -33,4 +33,4 @@ def TestDadasetSplit(args):
 if __name__ == '__main__':
     args = ParseArguments()
 
-    TestDadasetSplit(args)
+    TestPatchLevelDatasetSelection(args)
