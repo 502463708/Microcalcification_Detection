@@ -6,13 +6,19 @@ import shutil
 import torch
 import torch.backends.cudnn as cudnn
 
+from cam.cam import *
 from config.config_micro_calcification_image_level_classification import cfg
 from dataset.dataset_micro_calcification import MicroCalcificationDataset
 from logger.logger import Logger
 from metrics.metrics_image_level_classification import MetricsImageLevelClassification
 from net.resnet18 import ResNet18
-from torch.utils.data import DataLoader
+from PIL import Image
 from time import time
+from torch.utils.data import DataLoader
+from torchvision import models, transforms
+from torch.autograd import Variable
+from torch.nn import functional as F
+
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 cudnn.benchmark = True
@@ -46,7 +52,7 @@ def ParseArguments():
     return args
 
 
-def TestMicroCalcificationImageLevelClassification(args):
+def TestMicroCalcificationImageLevelClassification(args,CAM=False):
     start_time_for_epoch = time()
 
     prediction_saving_dir = os.path.join(args.model_saving_dir,
@@ -92,6 +98,7 @@ def TestMicroCalcificationImageLevelClassification(args):
     net = torch.nn.DataParallel(net).cuda()
     net.load_state_dict(torch.load(ckpt_path))
     net = net.eval()
+
 
     logger.write_and_print('Load ckpt: {0}...'.format(ckpt_path))
 
@@ -171,6 +178,13 @@ def TestMicroCalcificationImageLevelClassification(args):
             cv2.imwrite(os.path.join(saving_dir_of_this_patch, filename.replace('.png', '_image.png')), image_np)
             cv2.imwrite(os.path.join(saving_dir_of_this_patch, filename.replace('.png', '_pixel_level_label.png')),
                         pixel_level_label_np)
+
+            if CAM:
+              result = generateCAM(net,image_np,"layer3")
+              cv2.imwrite(os.path.join(saving_dir_of_this_patch, filename.replace('.png', '_cam.png')),
+                          result)
+
+
 
     # print logging information
     logger.write_and_print('##########################################################################################')
