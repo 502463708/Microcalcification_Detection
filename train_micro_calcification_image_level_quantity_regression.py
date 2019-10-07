@@ -46,10 +46,10 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
 
     # these variable is created for recording the annotated calcifications,
     # recalled calcifications and false positive calcifications
-    TPs_epoch_level = 0
-    TNs_epoch_level = 0
-    FPs_epoch_level = 0
-    FNs_epoch_level = 0
+    pred_num_epoch_level = 0
+    label_epoch_level = 0
+    # FPs_epoch_level = 0
+    # FNs_epoch_level = 0
 
     # start time of this epoch
     start_time_for_epoch = time()
@@ -66,7 +66,7 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
         image_level_labels_tensor = image_level_labels_tensor.cuda()
 
         # reshape the label to meet the requirement of CrossEntropy
-        image_level_labels_tensor = image_level_labels_tensor.view(-1)  # [B, C] -> [B]
+        #image_level_labels_tensor = image_level_labels_tensor.view(-1)  # [B, C] -> [B]
 
         # network forward
         preds_tensor = net(images_tensor)  # the shape of preds_tensor: [B, 2]
@@ -83,12 +83,10 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
             optimizer.step()
 
         # metrics
-        image_level_masks_np, _, TPs_batch_level, TNs_batch_level, FPs_batch_level, FNs_batch_level = \
+        pred_num_batch_level, label_batch_level= \
             metrics.metric_batch_level(preds_tensor, image_level_labels_tensor)
-        TPs_epoch_level += TPs_batch_level
-        TNs_epoch_level += TNs_batch_level
-        FPs_epoch_level += FPs_batch_level
-        FNs_epoch_level += FNs_batch_level
+        pred_num_epoch_level += pred_num_batch_level
+        label_epoch_level += label_batch_level
 
         # print logging information
         if logger is not None:

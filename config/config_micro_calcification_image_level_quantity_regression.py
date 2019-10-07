@@ -33,7 +33,7 @@ __C.dataset.augmentation.enable_horizontal_flip = True
 
 # loss
 __C.loss = {}
-__C.loss.name = 'LOneLoss'  # only 'LOneLoss' implemented
+__C.loss.name = 'L1Loss'  # only 'LOneLoss' implemented
 
 # net
 __C.net = {}

@@ -3,7 +3,8 @@ This file implements a class which can evaluate the accuracy
 """
 import numpy as np
 import torch
-
+import numpy as np
+from PIL import Image, ImageFont, ImageDraw
 from common.utils import post_process_residue
 from skimage import measure
 
@@ -41,10 +42,7 @@ class MetricsImageLEvelQuantityRegression(object):
             # transform the tensor into ndarray format
             labels = labels.numpy()
 
-
-
         post_process_preds_list = list()
-
 
         for patch_idx in range(preds.shape[0]):
             pred = preds[patch_idx, :, :]
@@ -53,7 +51,6 @@ class MetricsImageLEvelQuantityRegression(object):
             post_process_pred = self.metric_patch_level(pred, label)
 
             post_process_preds_list.append(post_process_pred)
-
 
         post_process_preds_np = np.array(post_process_preds_list)  # shape: B,Num
 
@@ -76,46 +73,29 @@ class MetricsImageLEvelQuantityRegression(object):
         label_props = measure.regionprops(label_connected_components)
 
         # detected
-        pred_list = list()
         pred_num = len(post_process_pred_props)
-        if pred_num > 0:
-            for idx in range(pred_num):
-                pred_list.append(np.array(post_process_pred_props[idx].centroid))
-
-        # annotated
-        label_list = list()
         label_num = len(label_props)
-        if label_num > 0:
-            for idx in range(label_num):
-                label_list.append(np.array(label_props[idx].centroid))
 
-        calcification_num = label_num
-        recall_num = 0
-        FP_num = 0
+        # transform into 112*112 images
+        image = np.zeros((112, 112), dtype=np.uint8)
+        image = Image.fromarray(image)
 
-        # for the negative patch case
-        if label_num == 0:
-            FP_num = pred_num
+        draw = ImageDraw.Draw(image)
 
-        # for the positive patch case with failing to detect anything
-        elif pred_num == 0:
-            recall_num = 0
+        font = ImageFont.truetype("arial.ttf", 60)
 
-        # for the positive patch case with something being detected
-        else:
-            # calculate recall
-            for label_idx in range(label_num):
-                for pred_idx in range(pred_num):
-                    if np.linalg.norm(label_list[label_idx] - pred_list[pred_idx]) <= self.distance_threshold:
-                        recall_num += 1
-                        break
+        draw.text((40, 20), str(pred_num), (255), font=font)
 
-            # calculate FP
-            for pred_idx in range(pred_num):
-                for label_idx in range(label_num):
-                    if np.linalg.norm(label_list[label_idx] - pred_list[pred_idx]) <= self.distance_threshold:
-                        break
-                    if label_idx == label_num - 1:
-                        FP_num += 1
+        pred_img = np.array(image)
 
-        return post_process_pred, calcification_num, recall_num, FP_num
+        # again for label
+        label_image = np.zeros((112, 112), dtype=np.uint8)
+        label_image = Image.fromarray(label_image)
+
+        draw = ImageDraw.Draw(label_image)
+        font = ImageFont.truetype("arial.ttf", 60)
+
+        draw.text((40, 20), str(label_num), (255), font=font)
+        label_img = np.array(label_image)
+
+        return pred_num, label_num, pred_img, label_img
