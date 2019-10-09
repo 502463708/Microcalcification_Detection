@@ -43,20 +43,33 @@ class MetricsImageLEvelQuantityRegression(object):
             labels = labels.numpy()
 
         post_process_preds_list = list()
+        process_labels_list = list()
+        post_process_visual_preds_list = list()
+        process_visual_label_list = list()
 
         for patch_idx in range(preds.shape[0]):
             pred = preds[patch_idx, :, :]
             label = labels[patch_idx, :, :]
 
-            post_process_pred = self.metric_patch_level(pred, label)
+            pred_num, label_num, pred_img, label_img = self.metric_patch_level(pred, label)
 
-            post_process_preds_list.append(post_process_pred)
+            post_process_preds_list.append(pred_num)
+            process_labels_list.append(label_num)
+            post_process_visual_preds_list.append(pred_img)
+            process_visual_label_list.append(label_img)
 
         post_process_preds_np = np.array(post_process_preds_list)  # shape: B,Num
+        process_labels_np = np.array(process_labels_list)
+        post_process_visual_preds_np = np.array(post_process_visual_preds_list)  # shape : B,112,112
+        process_visual_label_np = np.array(process_visual_label_list)
+        Distance_batch_level = np.abs(np.subtract(post_process_preds_np, process_labels_np))
+        pred_num_batch_level = np.sum(post_process_preds_np)
+        label_num_batch_level = np.sum(process_labels_np)
 
         assert post_process_preds_np.shape == preds.shape
 
-        return post_process_preds_np
+        return post_process_preds_np, process_labels_np, post_process_visual_preds_np, process_visual_label_np, Distance_batch_level \
+            , pred_num_batch_level, label_num_batch_level
 
     def metric_patch_level(self, pred, label):
         assert len(pred.shape) == 2

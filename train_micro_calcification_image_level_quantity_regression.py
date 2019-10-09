@@ -83,10 +83,11 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
             optimizer.step()
 
         # metrics
-        pred_num_batch_level, label_batch_level= \
+        post_process_preds_np, process_labels_np, post_process_visual_preds_np, process_visual_label_np, Distance_batch_level \
+            , pred_num_batch_level, label_num_batch_level= \
             metrics.metric_batch_level(preds_tensor, image_level_labels_tensor)
         pred_num_epoch_level += pred_num_batch_level
-        label_epoch_level += label_batch_level
+        label_epoch_level += label_num_batch_level
 
         # print logging information
         if logger is not None:
@@ -103,26 +104,25 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
                     opts=dict(title='I{}'.format('T' if training else 'V'))
                 )
                 visdom_obj.images(
-                    np.expand_dims(image_level_masks_np, axis=1),
-                    win='ILM{}'.format('T' if training else 'V'),
+                    post_process_visual_preds_np,
+                    win='IPred{}'.format('T' if training else 'V'),
                     nrow=1,
-                    opts=dict(title='ILM{}'.format('T' if training else 'V'))
+                    opts=dict(title='IPred{}'.format('T' if training else 'V'))
                 )
                 visdom_obj.images(
-                    pixel_level_labels_tensor.unsqueeze(dim=1),
-                    win='PL{}'.format('T' if training else 'V'),
+                    process_visual_label_np,
+                    win='ILablel{}'.format('T' if training else 'V'),
                     nrow=1,
-                    opts=dict(title='PL{}'.format('T' if training else 'V'))
+                    opts=dict(title='ILabel{}'.format('T' if training else 'V'))
                 )
             except BaseException as err:
                 print('Error message: ', err)
 
     # calculate loss of this epoch
-    average_loss_of_this_epoch = np.array(loss_for_each_batch_list).mean()
+    average_loss_of_this_epoch = Distance_batch_level.mean()
 
     # calculate accuracy of this epoch
-    accuracy_of_this_epoch = (TPs_epoch_level + TNs_epoch_level) / (
-            TPs_epoch_level + TNs_epoch_level + FPs_epoch_level + FNs_epoch_level)
+    accuracy_of_this_epoch = Distance_batch_level.sum()/label_num_batch_level
 
     # record metric on validation set for determining the best model to be saved
     if not training:
@@ -266,8 +266,8 @@ if __name__ == '__main__':
                                         shuffle=True, num_workers=cfg.train.num_threads)
 
     # define loss function
-    assert cfg.loss.name in ['LOneLoss']
-    if cfg.loss.name == 'LOneLoss':
+    assert cfg.loss.name in ['L1Loss']
+    if cfg.loss.name == 'L1Loss':
         loss_func = nn.L1Loss()
 
     # setup optimizer
