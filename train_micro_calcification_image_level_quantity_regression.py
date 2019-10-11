@@ -104,13 +104,13 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
                     opts=dict(title='I{}'.format('T' if training else 'V'))
                 )
                 visdom_obj.images(
-                    post_process_visual_preds_np,
+                   np.expand_dims( post_process_visual_preds_np,axis=1),
                     win='IPred{}'.format('T' if training else 'V'),
                     nrow=1,
                     opts=dict(title='IPred{}'.format('T' if training else 'V'))
                 )
                 visdom_obj.images(
-                    process_visual_label_np,
+                   np.expand_dims(process_visual_label_np,axis=1),
                     win='ILablel{}'.format('T' if training else 'V'),
                     nrow=1,
                     opts=dict(title='ILabel{}'.format('T' if training else 'V'))
