@@ -16,8 +16,8 @@ class L1Loss(nn.Module):
     def forward(self, preds_num, labels_num, logger=None):
         assert torch.is_tensor(preds_num)
         assert torch.is_tensor(labels_num)
-        assert len(preds_num.shape) == 2  # shape: B, Num
-        assert len(labels_num.shape) == 2  # shape: B, Num
+        assert len(preds_num.shape) == 2  # shape: B*1
+        assert len(labels_num.shape) == 2  # shape: B*1
 
         # label number must be a tensor on gpu devices
         if labels_num.device.type != 'cuda':

@@ -6,14 +6,16 @@ import torch
 import torch.backends.cudnn as cudnn
 import visdom
 import torch.nn as nn
+from common.utils import BatchImageToNumber
 from common.utils import save_best_ckpt
-from config.config_micro_calcification_image_level_classification import cfg
+from config.config_micro_calcification_image_level_quantity_regression import cfg
 from dataset.dataset_micro_calcification import MicroCalcificationDataset
 from metrics.metrics_image_level_quantity_regression import MetricsImageLEvelQuantityRegression
 from logger.logger import Logger
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader
 from time import time
+from skimage import measure
 
 # the environment related global variables are specified here
 #
@@ -44,12 +46,9 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
     # this variable is created for recording loss of each batch
     loss_for_each_batch_list = list()
 
-    # these variable is created for recording the annotated calcifications,
-    # recalled calcifications and false positive calcifications
+    # these variable is created for recording the annotated
+
     pred_num_epoch_level = 0
-    label_epoch_level = 0
-    # FPs_epoch_level = 0
-    # FNs_epoch_level = 0
 
     # start time of this epoch
     start_time_for_epoch = time()
@@ -61,15 +60,15 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
         # start time of this batch
         start_time_for_batch = time()
 
+        # transfer the image label tensor into 1 dimension tensor
+        image_level_labels_tensor = BatchImageToNumber(image_level_labels_tensor)  # B*H*W --> B*1
+
         # transfer the tensor into gpu device
         images_tensor = images_tensor.cuda()
         image_level_labels_tensor = image_level_labels_tensor.cuda()
 
-        # reshape the label to meet the requirement of CrossEntropy
-        #image_level_labels_tensor = image_level_labels_tensor.view(-1)  # [B, C] -> [B]
-
         # network forward
-        preds_tensor = net(images_tensor)  # the shape of preds_tensor: [B, 2]
+        preds_tensor = net(images_tensor)  # the shape of preds_tensor: [B*1]
 
         # calculate loss of this batch
         loss = loss_func(preds_tensor, image_level_labels_tensor)
@@ -83,11 +82,9 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
             optimizer.step()
 
         # metrics
-        post_process_preds_np, process_labels_np, post_process_visual_preds_np, process_visual_label_np, Distance_batch_level \
-            , pred_num_batch_level, label_num_batch_level= \
+        visual_preds_np, visual_label_np, Distance_batch_level, correct_pred = \
             metrics.metric_batch_level(preds_tensor, image_level_labels_tensor)
-        pred_num_epoch_level += pred_num_batch_level
-        label_epoch_level += label_num_batch_level
+        pred_num_epoch_level += preds_tensor.shape[0]
 
         # print logging information
         if logger is not None:
@@ -99,21 +96,30 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
             try:
                 visdom_obj.images(
                     images_tensor,
-                    win='I{}'.format('T' if training else 'V'),
+                    win='Img{}'.format('T' if training else 'V'),
                     nrow=1,
-                    opts=dict(title='I{}'.format('T' if training else 'V'))
+                    opts=dict(title='Img{}'.format('T' if training else 'V'))
                 )
                 visdom_obj.images(
-                   np.expand_dims( post_process_visual_preds_np,axis=1),
-                    win='IPred{}'.format('T' if training else 'V'),
+                    pixel_level_labels_tensor.unsqueeze(dim=1),
+                    win='PL{}'.format('T' if training else 'V'),
                     nrow=1,
-                    opts=dict(title='IPred{}'.format('T' if training else 'V'))
+                    opts=dict(title='PL{}'.format('T' if training else 'V'))
+                )
+
+
+                # labels_num_np, visual_preds_np, visual_label_np, Distance_batch_level, correct_pred
+                visdom_obj.images(
+                    np.expand_dims(visual_preds_np, axis=1),
+                    win='NPre{}'.format('T' if training else 'V'),
+                    nrow=1,
+                    opts=dict(title='NPre{}'.format('T' if training else 'V'))
                 )
                 visdom_obj.images(
-                   np.expand_dims(process_visual_label_np,axis=1),
-                    win='ILablel{}'.format('T' if training else 'V'),
+                    np.expand_dims(visual_label_np, axis=1),
+                    win='NLab{}'.format('T' if training else 'V'),
                     nrow=1,
-                    opts=dict(title='ILabel{}'.format('T' if training else 'V'))
+                    opts=dict(title='NLab{}'.format('T' if training else 'V'))
                 )
             except BaseException as err:
                 print('Error message: ', err)
@@ -122,7 +128,7 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
     average_loss_of_this_epoch = Distance_batch_level.mean()
 
     # calculate accuracy of this epoch
-    accuracy_of_this_epoch = Distance_batch_level.sum()/label_num_batch_level
+    accuracy_of_this_epoch = correct_pred / pred_num_epoch_level
 
     # record metric on validation set for determining the best model to be saved
     if not training:
@@ -151,38 +157,6 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
                     name='{}_accuracy'.format('training' if training else 'validation'),
                     opts=dict(title='accuracy'))
 
-    # update TPs of this epoch in the visdom
-    visdom_obj.line(X=np.array([epoch_idx]),
-                    Y=np.array([TPs_epoch_level]),
-                    win='metrics_{}'.format('training' if training else 'validation'),
-                    update='append',
-                    name='TPs',
-                    opts=dict(title='metrics_{}'.format('training' if training else 'validation')))
-
-    # update TNs of this epoch in the visdom
-    visdom_obj.line(X=np.array([epoch_idx]),
-                    Y=np.array([TNs_epoch_level]),
-                    win='metrics_{}'.format('training' if training else 'validation'),
-                    update='append',
-                    name='TNS',
-                    opts=dict(title='metrics_{}'.format('training' if training else 'validation')))
-
-    # update FPs of this epoch in the visdom
-    visdom_obj.line(X=np.array([epoch_idx]),
-                    Y=np.array([FPs_epoch_level]),
-                    win='metrics_{}'.format('training' if training else 'validation'),
-                    update='append',
-                    name='FPs',
-                    opts=dict(title='metrics_{}'.format('training' if training else 'validation')))
-
-    # update FNs of this epoch in the visdom
-    visdom_obj.line(X=np.array([epoch_idx]),
-                    Y=np.array([FNs_epoch_level]),
-                    win='metrics_{}'.format('training' if training else 'validation'),
-                    update='append',
-                    name='FNs',
-                    opts=dict(title='metrics_{}'.format('training' if training else 'validation')))
-
     return
 
 
@@ -194,9 +168,9 @@ if __name__ == '__main__':
         os.makedirs(ckpt_dir)
 
         # copy related config and net .py file to the saving dir
-        shutil.copyfile('./config/config_micro_calcification_image_level_classification.py',
+        shutil.copyfile('./config/config_micro_calcification_image_level_quantity_regression.py',
                         os.path.join(cfg.general.saving_dir,
-                                     'config_micro_calcification_image_level_classification.py'))
+                                     'config_micro_calcification_image_level_quantity_regression.py'))
         shutil.copyfile('./net/{0}.py'.format(cfg.net.name),
                         os.path.join(cfg.general.saving_dir, '{0}.py'.format(cfg.net.name)))
 

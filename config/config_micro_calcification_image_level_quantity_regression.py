@@ -12,9 +12,9 @@ cfg = __C
 
 # general parameters
 __C.general = {}
-__C.general.data_root_dir = '/data/lars/data/Inbreast-dataset-cropped-pathches/'
-__C.general.saving_dir = '/data/lars/models/20190929_uCs_image_level_regression_L1_default/'
-__C.general.cuda_device_idx = '7'  # specify the index of the gpu devices to be occupied
+__C.general.data_root_dir = '/home/groupprofzli/data1/dwz/data/Inbreast-dataset-cropped-pathches'
+__C.general.saving_dir = '/home/groupprofzli/data1/dwz/data/models/20191012_uCs_quantity_regression_L1_default/'
+__C.general.cuda_device_idx = '1'  # specify the index of the gpu devices to be occupied
 
 # dataset parameters
 __C.dataset = {}
