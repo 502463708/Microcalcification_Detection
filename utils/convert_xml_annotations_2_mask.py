@@ -1,4 +1,8 @@
 import xml.etree.ElementTree as ET
+import cv2
+import numpy as np
+from skimage.draw import polygon
+import os
 
 
 class Annotation(object):
@@ -42,10 +46,30 @@ class ImageLevelAnnotationCollection(object):
         return
 
 
-image_obj = ImageLevelAnnotationCollection('/data/lars/data/Inbreast-raw-data-with-XML-annotations/AllXML/20587612.xml')
+def draw_label(xml_name, img_name, xml_dir, image_dir, label_dir):
+    img = cv2.imread(os.path.join(image_dir, img_name), cv2.IMREAD_GRAYSCALE)
+    xml_obj = ImageLevelAnnotationCollection(os.path.join(xml_dir, xml_name))
+    label = np.zeros_like(img)  # column, row
+    print(xml_name)
+    for annotation in xml_obj.annotation_list:
+        if annotation.name == 'Calcification':
+            cal_list = np.array(annotation.coordinate_list) - 1  # row ,coumn
+            for i in cal_list:
+                try:
+                    label[i[1], i[0]] = 255
+                except:
+                    print('wrong cor at cal in file{}'.format(xml_name))
+                    label[i[0], i[1]] = 255
 
-for annotation in image_obj.annotation_list:
-    print(annotation.name)
-    print(annotation.area)
-    print(annotation.pixel_number)
-    print(annotation.coordinate_list)
+        elif annotation.name == 'Mass':
+            other_list = np.array(annotation.coordinate_list) - 1
+            try:
+                cc, rr = polygon(other_list[:, 0], other_list[:, 1])
+                label[rr, cc] = 100
+            except:
+                print('wrong cor at mass  in file{}'.format(xml_name))
+                cc, rr = polygon(other_list[:, 0], other_list[:, 1])
+                label[cc, rr] = 100
+    cv2.imwrite(os.path.join(label_dir, img_name), label)
+
+    return 'successfully save label'

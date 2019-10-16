@@ -13,7 +13,7 @@ cfg = __C
 # general parameters
 __C.general = {}
 __C.general.data_root_dir = '/home/groupprofzli/data1/dwz/data/Inbreast-dataset-cropped-pathches'
-__C.general.saving_dir = '/home/groupprofzli/data1/dwz/data/models/20191012_uCs_quantity_regression_L1_default/'
+__C.general.saving_dir = '/home/groupprofzli/data1/dwz/data/models/20191014_uCs_quantity_regression_L1/'
 __C.general.cuda_device_idx = '1'  # specify the index of the gpu devices to be occupied
 
 # dataset parameters
@@ -45,7 +45,7 @@ __C.net.num_classes = 1
 __C.train = {}
 __C.train.num_epochs = 501  # number of training epoch
 __C.train.save_epochs = 50  # save ckpt every x epochs
-__C.train.batch_size = 1024
+__C.train.batch_size = 500
 __C.train.num_threads = 8
 
 # learning rate scheduler

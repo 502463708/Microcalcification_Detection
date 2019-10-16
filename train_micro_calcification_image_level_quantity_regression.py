@@ -54,24 +54,31 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
     start_time_for_epoch = time()
 
     # iterating through each batch
-    for batch_idx, (images_tensor, pixel_level_labels_tensor, _, image_level_labels_tensor, _, _) in enumerate(
+    # image_tensor, pixel_level_label_tensor, pixel_level_label_dilated_tensor, image_level_label_tensor, \
+    #          micro_calcification_number_label_tensor, filename
+    for batch_idx, (
+    images_tensor, pixel_level_labels_tensor, _, _, micro_calcification_number_label_tensor, _) in enumerate(
             data_loader):
 
         # start time of this batch
         start_time_for_batch = time()
 
         # transfer the image label tensor into 1 dimension tensor
-        image_level_labels_tensor = BatchImageToNumber(image_level_labels_tensor)  # B*H*W --> B*1
+        # micro_calcification_number_label_tensor = BatchImageToNumber(image_level_labels_tensor)  # B*H*W --> B*1
 
         # transfer the tensor into gpu device
         images_tensor = images_tensor.cuda()
-        image_level_labels_tensor = image_level_labels_tensor.cuda()
+        pixel_level_labels_tensor=pixel_level_labels_tensor.cuda()
+        micro_calcification_number_label_tensor=micro_calcification_number_label_tensor.type(torch.FloatTensor)
+        micro_calcification_number_label_tensor = micro_calcification_number_label_tensor.cuda()
+
 
         # network forward
         preds_tensor = net(images_tensor)  # the shape of preds_tensor: [B*1]
 
+
         # calculate loss of this batch
-        loss = loss_func(preds_tensor, image_level_labels_tensor)
+        loss = loss_func(preds_tensor, micro_calcification_number_label_tensor)
 
         loss_for_each_batch_list.append(loss.item())
 
@@ -83,7 +90,7 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
 
         # metrics
         visual_preds_np, visual_label_np, Distance_batch_level, correct_pred = \
-            metrics.metric_batch_level(preds_tensor, image_level_labels_tensor)
+            metrics.metric_batch_level(preds_tensor, micro_calcification_number_label_tensor)
         pred_num_epoch_level += preds_tensor.shape[0]
 
         # print logging information
@@ -106,7 +113,6 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
                     nrow=1,
                     opts=dict(title='PL{}'.format('T' if training else 'V'))
                 )
-
 
                 # labels_num_np, visual_preds_np, visual_label_np, Distance_batch_level, correct_pred
                 visdom_obj.images(

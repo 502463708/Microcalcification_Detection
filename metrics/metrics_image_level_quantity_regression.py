@@ -7,6 +7,8 @@ from PIL import Image, ImageFont, ImageDraw
 from common.utils import post_process_residue
 from skimage import measure
 
+font_dir="/home/groupprofzli/user/dwz/arial.ttf"
+
 
 class MetricsImageLEvelQuantityRegression(object):
 
@@ -71,7 +73,7 @@ class MetricsImageLEvelQuantityRegression(object):
         visual_labels_np = np.array(visual_labels_list)
         distance_batch_level = np.abs(np.subtract(preds, labels))
         assert preds.shape == labels.shape
-        correct_pred = np.sum(preds == labels)
+        correct_pred = np.sum(np.round(preds) == labels)
 
         return visual_preds_np, visual_labels_np, distance_batch_level, correct_pred
 
@@ -84,7 +86,7 @@ class MetricsImageLEvelQuantityRegression(object):
 
         draw = ImageDraw.Draw(image)
 
-        font = ImageFont.truetype("arial.ttf", 60)
+        font = ImageFont.truetype(font_dir, 40)
 
         draw.text((40, 20), str(pred), (255), font=font)
 
@@ -95,7 +97,7 @@ class MetricsImageLEvelQuantityRegression(object):
         label_image = Image.fromarray(label_image)
 
         draw = ImageDraw.Draw(label_image)
-        font = ImageFont.truetype("arial.ttf", 60)
+        font = ImageFont.truetype(font_dir, 40)
 
         draw.text((40, 20), str(label), (255), font=font)
         label_img = np.array(label_image)
