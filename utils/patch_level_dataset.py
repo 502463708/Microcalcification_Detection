@@ -74,7 +74,7 @@ def ExtractPatch(image, patch_size, stride):
 
 
 def save_patch(save_dir, mode, image_patch_list, label_patch_list, image_name, threshold=20000):
-    print(len(image_patch_list),len(label_patch_list),image_name)
+    print(len(image_patch_list), len(label_patch_list), image_name)
     for idx in range(len(image_patch_list)):
         image_patch = image_patch_list[idx]
         label_patch = label_patch_list[idx]
@@ -83,13 +83,13 @@ def save_patch(save_dir, mode, image_patch_list, label_patch_list, image_name, t
                 continue
             elif np.sum(label_patch == 255) >= 0.01:
                 dir_name = os.path.join(save_dir, 'positive', mode)
-                save_name = 'positive' + str(idx) + image_name
+                save_name = 'positive' + str(idx) + '_' + image_name
                 cv2.imwrite(os.path.join(dir_name, 'image', save_name), image_patch)
                 cv2.imwrite(os.path.join(dir_name, 'labels', save_name), label_patch)
 
             elif np.sum(label_patch) <= 0.01:
                 dir_name = os.path.join(save_dir, 'negative', mode)
-                save_name = 'negative' + str(idx) + image_name
+                save_name = 'negative' + str(idx) + '_' + image_name
                 cv2.imwrite(os.path.join(dir_name, 'image', save_name), image_patch)
                 cv2.imwrite(os.path.join(dir_name, 'labels', save_name), label_patch)
 
@@ -98,7 +98,7 @@ def save_patch(save_dir, mode, image_patch_list, label_patch_list, image_name, t
 
 if __name__ == '__main__':
     load_dir = '/data/lars/data/Inbreat_Image_splitted_10_16'
-    mysave_dir = makedir('/data/lars/data/Inbreat_patch_splitted_10_16')
+    mysave_dir = makedir('/data/lars/data/Inbreat_patch_splitted_10_16_new')
     for mod in ['training', 'validation', 'test']:
         myname_list, myimage_list, mylabel_list, mymode = LoadImage(
             folder_dir=load_dir, mode=mod)

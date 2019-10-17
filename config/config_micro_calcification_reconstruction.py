@@ -11,8 +11,8 @@ cfg = __C
 
 # general parameters
 __C.general = {}
-__C.general.data_root_dir = '/data/lars/data/Inbreast-dataset-cropped-pathches/'
-__C.general.saving_dir = '/data/lars/models/20190925_uCs_reconstruction_ttestlossv3_default_dilation_radius_7/'
+__C.general.data_root_dir = '/data/lars/data/Inbreat_patch_splitted_10_16_new'
+__C.general.saving_dir = '/data/lars/models/20191017_uCs_reconstruction_ttestlossv3_default_dilation_radius_7/'
 __C.general.cuda_device_idx = '6, 7'  # specify the index of the gpu devices to be occupied
 
 # dataset parameters
@@ -47,7 +47,7 @@ __C.net.out_channels = 1
 __C.train = {}
 __C.train.num_epochs = 501  # number of training epoch
 __C.train.save_epochs = 10  # save ckpt every x epochs
-__C.train.batch_size = 480
+__C.train.batch_size = 120
 __C.train.num_threads = 8
 
 # learning rate scheduler
