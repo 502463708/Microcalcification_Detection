@@ -1,12 +1,13 @@
-from sklearn.model_selection import train_test_split
-import os
 import cv2
+import os
+
 from skimage import measure
+from sklearn.model_selection import train_test_split
 
 train_ratio = 0.6
 validation_ratio = 0.2
 test_ratio = 0.2
-large_threshold = 49 * 3.14
+large_threshold = 7 * 7 * 3.14
 
 data_dir = r'C:\Users\75209\Desktop\data\Inbreast-raw-data-with-XML-annotations\ddataset\image'
 label_dir = r'C:\Users\75209\Desktop\data\Inbreast-raw-data-with-XML-annotations\ddataset\labels'
@@ -18,8 +19,7 @@ try:
 except:
     print('normal')
 
-
-#dataset split
+# dataset split
 image_train_and_val, image_test, label_train_and_val, label_test = train_test_split(image_list, image_list,
                                                                                     test_size=test_ratio)
 
@@ -43,7 +43,7 @@ mkpath(save_path)
 
 
 def crop_image(image, label, crop_size=500, threshold=1500):
-    assert image.shape==label.shape
+    assert image.shape == label.shape
     for i in range(crop_size):
         if image[0, :].sum() < threshold:
             image = image[1:, :]
@@ -79,7 +79,7 @@ def saveimg(name_list=image_train, mode='training'):
                     label[hd][wd] == 0
         mode_path = os.path.join(save_path, mode)
         save_name = name_list[idx]
-        assert img.shape==label.shape
+        assert img.shape == label.shape
         cv2.imwrite(os.path.join(mode_path, 'image', save_name), img)
         cv2.imwrite(os.path.join(mode_path, 'labels', save_name), label)
 
@@ -92,19 +92,19 @@ def crop_process(imgdir, labdir, crop_size=10):
         img = cv2.imread(os.path.join(imgdir, i), cv2.IMREAD_GRAYSCALE)
         label = cv2.imread(os.path.join(labdir, i), cv2.IMREAD_GRAYSCALE)
         img, label = crop_image(img, label, crop_size)
-        assert img.shape==label.shape
+        assert img.shape == label.shape
         cv2.imwrite(os.path.join(imgdir, i), img)
         cv2.imwrite(os.path.join(labdir, i), label)
     return 'finish cropped'
 
 
 if __name__ == '__main__':
-    #create
+    # create
     saveimg(image_train, mode='training')
     saveimg(image_val, mode='validation')
     saveimg(image_test, mode='test')
 
-    #crop process
+    # crop process
     for mode in ['training', 'validation', 'test']:
         my_dir = os.path.join(r'C:\Users\75209\Desktop\Inbreat_Image_splitted_10_16', mode)
         img_dir = os.path.join(my_dir, 'image')

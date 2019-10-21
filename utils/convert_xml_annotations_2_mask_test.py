@@ -1,103 +1,70 @@
-import cv2
+import argparse
 import os
-import numpy as np
-from utils.convert_xml_annotations_2_mask import draw_label
+import shutil
 
-mydir = r'C:\Users\75209\Desktop\data\Inbreast-raw-data-with-XML-annotations'
-img_save_dir = r'C:\Users\75209\Desktop\data\Inbreast-raw-data-with-XML-annotations\Inbreast-png'
+from utils.convert_xml_annotations_2_mask import image_with_xml2image_with_mask
 
-xml_dir = os.path.join(mydir, 'AllXML')
-image_dir = os.path.join(mydir, 'Inbreast-png')
-label_dir = os.path.join(mydir, 'labels-no-region')
-if not os.path.isdir(label_dir):
-    os.mkdir(label_dir)
-xml_list = os.listdir(xml_dir)
-image_list = os.listdir(image_dir)
-xml_split_list = list()
-image_split_list = list()
 
-for xml in xml_list:
-    xml_split = xml.split('.')
-    xml_split_list.append(xml_split)
+def ParseArguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--src_data_root_dir',
+                        type=str,
+                        default='/data/lars/data/Inbreast-raw-data-with-XML-annotations/',
+                        help='Source data root dir.')
+    parser.add_argument('--area_threshold',
+                        type=float,
+                        default=-1,
+                        help='The threshold to filter large calcifications.')
+    parser.add_argument('--dst_data_root_dir',
+                        type=str,
+                        default='/data/lars/data/Inbreast-raw-data-with-pixel-level-labels/',
+                        help='Destination data root dir.')
 
-for image in image_list:
-    image_split = image.split('.')
-    image_split_list.append(image_split)
+    args = parser.parse_args()
 
-#generate null label images
-def generate_null_label(dir,img_list,save_dir):
-    for i in img_list:
-        img = cv2.imread(os.path.join(dir, i), cv2.IMREAD_GRAYSCALE)
-        no_label = np.zeros_like(img, dtype='uint8')
-        cv2.imwrite(os.path.join(save_dir, i), no_label)
+    assert os.path.exists(args.src_data_root_dir), 'Source data root dir does not exist.'
 
-#generate_null_label(image_dir,image_list,r'C:\Users\75209\Desktop\data\Inbreast-raw-data-with-XML-annotations\null-labels')
+    if os.path.exists(args.dst_data_root_dir):
+        shutil.rmtree(args.dst_data_root_dir)
+    os.mkdir(args.dst_data_root_dir)
+    os.mkdir(os.path.join(args.dst_data_root_dir, 'images'))
+    os.mkdir(os.path.join(args.dst_data_root_dir, 'labels'))
+
+    return args
+
+
+def TestConvertXml2Mask(args):
+    src_image_dir = os.path.join(args.src_data_root_dir, 'images')
+    src_xml_dir = os.path.join(args.src_data_root_dir, 'xml_annotations')
+
+    dst_image_dir = os.path.join(args.dst_data_root_dir, 'images')
+    dst_label_dir = os.path.join(args.dst_data_root_dir, 'labels')
+
+    assert os.path.exists(src_image_dir)
+    assert os.path.exists(src_xml_dir)
+
+    image_filename_list = os.listdir(src_image_dir)
+
+    current_idx = 0
+    for image_filename in image_filename_list:
+        current_idx += 1
+        print('-------------------------------------------------------------------------------------------------------')
+        print('Processing {} out of {}, filename: {}'.format(current_idx, len(image_filename_list), image_filename))
+
+        xml_filename = image_filename.replace('png', 'xml')
+
+        absolute_src_image_path = os.path.join(src_image_dir, image_filename)
+        absolute_src_xml_path = os.path.join(src_xml_dir, xml_filename)
+        absolute_dst_image_path = os.path.join(dst_image_dir, image_filename)
+        absolute_dst_label_path = os.path.join(dst_label_dir, image_filename)
+
+        image_with_xml2image_with_mask(absolute_src_image_path, absolute_src_xml_path, absolute_dst_image_path,
+                                       absolute_dst_label_path, args.area_threshold)
+
+    return
+
 
 if __name__ == '__main__':
-    for xml_idx in range(len(xml_list)):
-        for image_idx in range(len(image_list)):
-            if xml_split_list[xml_idx][0] == image_split_list[image_idx][0]:
-                draw_label(xml_list[xml_idx], image_list[image_idx], xml_dir, image_dir, label_dir)
+    args = ParseArguments()
 
-# 22580341
-# 22670094 3408 1743
-#  22580706  3121 3659
-
-
-# image_obj = ImageLevelAnnotationCollection(
-#     r'C:\Users\75209\Desktop\data\Inbreast-raw-data-with-XML-annotations\AllXML\22580341.xml')
-# label = np.zeros((3328, 2560))
-# for annotation in image_obj.annotation_list:
-#     print(annotation.name)
-#     print(annotation.coordinate_list)
-#     if annotation.name == 'Calcification':
-#         cal_list = np.array(annotation.coordinate_list) - 1  # row ,coumn
-#         for i in cal_list:
-#             label[i[1], i[0]] = 255
-#     if annotation.name != 'Calcification':
-#         other_list = np.array(annotation.coordinate_list) - 1
-#
-#         cc, rr = polygon(other_list[:, 0], other_list[:, 1])
-#         label[rr, cc] = 100
-#     cv2.imwrite(r'C:\Users\75209\Desktop\data\test.png', label)
-#
-# max_0 = 0
-# max_1 = 0
-#
-# for annotation in image_obj.annotation_list:
-#     # print(annotation.name)
-#     # print(annotation.coordinate_list)
-#
-#     for i in annotation.coordinate_list:
-#         if i[0]>max_0:
-#             max_0=i[0]
-#         if i[1]>max_1:
-#             max_1=i[1]
-# print(max_0,max_1)
-
-
-#          label[i[0],i[1]] = 255
-# cv2.imwrite(r'C:\Users\75209\Desktop\data\test.png', label)
-# img = cv2.imread(
-#     r'C:\Users\75209\Desktop\data\Inbreast-raw-data-with-XML-annotations\Inbreast-raw-png\51048738_3f22cdda8da215e3_MG_R_ML_ANON.png',
-#     cv2.IMREAD_GRAYSCALE)
-# print(img.shape)
-# #
-# label=np.zeros_like(img)
-# for annotation in image_obj.annotation_list:
-#     if annotation.name == 'Calcification':
-#         cal_list = np.array(annotation.coordinate_list)  # row ,column
-#         for i in cal_list:
-#             print(i)
-#             label[i[0], i[1]] = 255
-#     if annotation.name == 'Spiculated Region':
-
-#         slist = np.array(annotation.coordinate_list)
-
-
-# label = np.zeros_like(img)
-# cc, rr = polygon(mlist[:, 0], mlist[:, 1])
-# print(cc)
-# print(rr)
-# label[rr, cc] = 255
-# cv2.imwrite(r'C:\Users\75209\Desktop\data\mtest.png', label)
+    TestConvertXml2Mask(args)

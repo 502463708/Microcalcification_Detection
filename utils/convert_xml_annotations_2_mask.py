@@ -1,8 +1,10 @@
-import xml.etree.ElementTree as ET
 import cv2
 import numpy as np
-from skimage.draw import polygon
 import os
+import shutil
+import xml.etree.ElementTree as ET
+
+from skimage.draw import polygon
 
 
 class Annotation(object):
@@ -46,30 +48,60 @@ class ImageLevelAnnotationCollection(object):
         return
 
 
-def draw_label(xml_name, img_name, xml_dir, image_dir, label_dir):
-    img = cv2.imread(os.path.join(image_dir, img_name), cv2.IMREAD_GRAYSCALE)
-    xml_obj = ImageLevelAnnotationCollection(os.path.join(xml_dir, xml_name))
-    label = np.zeros_like(img)  # column, row
-    print(xml_name)
+def generate_null_label(absolute_src_image_path, absolute_dst_label_path):
+    image_np = cv2.imread(absolute_src_image_path, cv2.IMREAD_GRAYSCALE)
+    label_np = np.zeros_like(image_np, dtype='uint8')
+    cv2.imwrite(absolute_dst_label_path, label_np)
+
+    return
+
+
+def generate_label_according_to_xml(absolute_src_image_path, absolute_src_xml_path, absolute_dst_label_path,
+                                    area_threshold=0.006):
+    image_np = cv2.imread(absolute_src_image_path, cv2.IMREAD_GRAYSCALE)
+    xml_obj = ImageLevelAnnotationCollection(absolute_src_xml_path)
+    label_np = np.zeros_like(image_np)  # column, row
+
     for annotation in xml_obj.annotation_list:
         if annotation.name == 'Calcification':
-            cal_list = np.array(annotation.coordinate_list) - 1  # row ,coumn
-            for i in cal_list:
-                try:
-                    label[i[1], i[0]] = 255
-                except:
-                    print('wrong cor at cal in file{}'.format(xml_name))
-                    label[i[0], i[1]] = 255
+            if annotation.area > area_threshold:
+                coordinate_list = np.array(annotation.coordinate_list) - 1
+                cc, rr = polygon(coordinate_list[:, 0], coordinate_list[:, 1])
+                label_np[rr, cc] = 125
+            else:
+                coordinate_list = np.array(annotation.coordinate_list) - 1
+                cc, rr = polygon(coordinate_list[:, 0], coordinate_list[:, 1])
+                # row ,column
+                if len(rr) == 0:
+                    for i in coordinate_list:
+                        label_np[i[1], i[0]] = 255
+                else:
+                    label_np[rr, cc] = 255
 
-        elif annotation.name == 'Mass':
-            other_list = np.array(annotation.coordinate_list) - 1
-            try:
-                cc, rr = polygon(other_list[:, 0], other_list[:, 1])
-                label[rr, cc] = 100
-            except:
-                print('wrong cor at mass  in file{}'.format(xml_name))
-                cc, rr = polygon(other_list[:, 0], other_list[:, 1])
-                label[cc, rr] = 100
-    cv2.imwrite(os.path.join(label_dir, img_name), label)
+        elif annotation.name != 'Spiculated Region':
+            coordinate_list = np.array(annotation.coordinate_list) - 1
+            cc, rr = polygon(coordinate_list[:, 0], coordinate_list[:, 1])
+            label_np[rr, cc] = 125
 
-    return 'successfully save label'
+    cv2.imwrite(absolute_dst_label_path, label_np)
+
+    return
+
+
+def image_with_xml2image_with_mask(absolute_src_image_path, absolute_src_xml_path, absolute_dst_image_path,
+                                   absolute_dst_label_path, area_threshold):
+    assert os.path.exists(absolute_src_image_path)
+
+    shutil.copyfile(absolute_src_image_path, absolute_dst_image_path)
+
+    if not os.path.exists(absolute_src_xml_path):
+        print('This image does not have xml annotation.')
+        generate_null_label(absolute_src_image_path, absolute_dst_label_path)
+    else:
+        print('This image has xml annotation.')
+        if area_threshold == -1:
+            generate_label_according_to_xml(absolute_src_image_path, absolute_src_xml_path, absolute_dst_label_path)
+        else:
+            generate_label_according_to_xml(absolute_src_image_path, absolute_src_xml_path, absolute_dst_label_path,
+                                            area_threshold)
+    return
