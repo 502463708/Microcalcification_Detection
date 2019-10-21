@@ -1,6 +1,6 @@
 import argparse
 
-from utils.data_split import DatasetSplit
+from utils.patch_level_data_filter import DatasetSplit
 
 
 def ParseArguments():
