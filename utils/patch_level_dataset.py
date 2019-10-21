@@ -23,18 +23,18 @@ def show_images(images: list) -> None:
 def makedir(save_dir):
     if not os.path.isdir(save_dir):
         os.mkdir(save_dir)
-        for i in ['positive', 'negative']:
+        for i in ['positive_patches', 'negative_patches']:
             os.mkdir(os.path.join(save_dir, i))
             for j in ['training', 'validation', 'test']:
                 os.mkdir(os.path.join(save_dir, i, j))
-                for k in ['labels', 'image']:
+                for k in ['labels', 'images']:
                     os.mkdir(os.path.join(save_dir, i, j, k))
 
     return save_dir
 
 
 def LoadImage(folder_dir, mode='test'):
-    image_dir = os.path.join(folder_dir, mode, 'image')
+    image_dir = os.path.join(folder_dir, mode, 'images')
     label_dir = os.path.join(folder_dir, mode, 'labels')
     name_list = os.listdir(image_dir)
     image_list = list()
@@ -73,39 +73,39 @@ def ExtractPatch(image, patch_size, stride):
     return image_patch_list
 
 
-def save_patch(save_dir, mode, image_patch_list, label_patch_list, image_name, threshold=20000):
+def save_patch(save_dir, mode, image_patch_list, label_patch_list, image_name, threshold=15000):
     print(len(image_patch_list), len(label_patch_list), image_name)
     for idx in range(len(image_patch_list)):
         image_patch = image_patch_list[idx]
         label_patch = label_patch_list[idx]
         if np.sum(image_patch) >= threshold:
-            if np.sum(label_patch == 100) >= 0.01:
+            if np.sum(np.logical_and(label_patch != 255, label_patch != 0)) >= 0.1:
                 continue
             elif np.sum(label_patch == 255) >= 0.01:
-                dir_name = os.path.join(save_dir, 'positive', mode)
+                dir_name = os.path.join(save_dir, 'positive_patches', mode)
                 save_name = 'positive' + str(idx) + '_' + image_name
-                cv2.imwrite(os.path.join(dir_name, 'image', save_name), image_patch)
+                cv2.imwrite(os.path.join(dir_name, 'images', save_name), image_patch)
                 cv2.imwrite(os.path.join(dir_name, 'labels', save_name), label_patch)
 
             elif np.sum(label_patch) <= 0.01:
-                dir_name = os.path.join(save_dir, 'negative', mode)
+                dir_name = os.path.join(save_dir, 'negative_patches', mode)
                 save_name = 'negative' + str(idx) + '_' + image_name
-                cv2.imwrite(os.path.join(dir_name, 'image', save_name), image_patch)
+                cv2.imwrite(os.path.join(dir_name, 'images', save_name), image_patch)
                 cv2.imwrite(os.path.join(dir_name, 'labels', save_name), label_patch)
 
     return ('finish save patch')
 
 
 if __name__ == '__main__':
-    load_dir = '/data/lars/data/Inbreat_Image_splitted_10_16'
-    mysave_dir = makedir('/data/lars/data/Inbreat_patch_splitted_10_16_new')
+    load_dir = '/data/lars/data/Inbreat_Image_splitted_10_17'
+    mysave_dir = makedir('/data/lars/data/Inbreat_patch_splitted_10_17_no_large_cal')
     for mod in ['training', 'validation', 'test']:
         myname_list, myimage_list, mylabel_list, mymode = LoadImage(
             folder_dir=load_dir, mode=mod)
         for idx in range(len(myname_list)):
             myimage_patch_list = ExtractPatch(myimage_list[idx], patch_size=(112, 112), stride=56)
             mylabel_patch_list = ExtractPatch(mylabel_list[idx], patch_size=(112, 112), stride=56)
-            save_patch(mysave_dir, mymode, myimage_patch_list, mylabel_patch_list, myname_list[idx], threshold=20000)
+            save_patch(mysave_dir, mymode, myimage_patch_list, mylabel_patch_list, myname_list[idx], threshold=1000000)
 
 # test_img=cv2.imread(r'C:\Users\75209\Desktop\Inbreat-Image-splitted\test\image\test57.png',cv2.IMREAD_GRAYSCALE)
 # test_label= cv2.imread(r'C:\Users\75209\Desktop\Inbreat-Image-splitted\test\labels\test57.png',cv2.IMREAD_GRAYSCALE)

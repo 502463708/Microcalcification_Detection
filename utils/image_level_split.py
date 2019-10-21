@@ -18,6 +18,8 @@ try:
 except:
     print('normal')
 
+
+#dataset split
 image_train_and_val, image_test, label_train_and_val, label_test = train_test_split(image_list, image_list,
                                                                                     test_size=test_ratio)
 
@@ -97,15 +99,17 @@ def crop_process(imgdir, labdir, crop_size=10):
 
 
 if __name__ == '__main__':
-    # saveimg(image_train, mode='training')
-    # saveimg(image_val, mode='validation')
-    # saveimg(image_test, mode='test')
+    #create
+    saveimg(image_train, mode='training')
+    saveimg(image_val, mode='validation')
+    saveimg(image_test, mode='test')
 
+    #crop process
     for mode in ['training', 'validation', 'test']:
         my_dir = os.path.join(r'C:\Users\75209\Desktop\Inbreat_Image_splitted_10_16', mode)
         img_dir = os.path.join(my_dir, 'image')
         lab_dir = os.path.join(my_dir, 'labels')
-        crop_process(img_dir, lab_dir, crop_size=600)
+        crop_process(img_dir, lab_dir, crop_size=800)
     print('finish dataset split')
     #
     # img_dir = 'C:\\Users\\75209\\Desktop\\Inbreat_Image_splitted_10_10\\validation\\image\\20587638.png'
