@@ -4,42 +4,17 @@ import os
 from skimage import measure
 from sklearn.model_selection import train_test_split
 
-train_ratio = 0.6
-validation_ratio = 0.2
-test_ratio = 0.2
-large_threshold = 7 * 7 * 3.14
-
-data_dir = r'C:\Users\75209\Desktop\data\Inbreast-raw-data-with-XML-annotations\ddataset\image'
-label_dir = r'C:\Users\75209\Desktop\data\Inbreast-raw-data-with-XML-annotations\ddataset\labels'
-save_path = r'C:\Users\75209\Desktop\Inbreat_Image_splitted_10_16'
-
-image_list = os.listdir(data_dir)
-try:
-    image_list.remove('desktop.ini')
-except:
-    print('normal')
 
 # dataset split
-image_train_and_val, image_test, label_train_and_val, label_test = train_test_split(image_list, image_list,
-                                                                                    test_size=test_ratio)
+def DatsetSplit(image_dir, train_ratio, validation_ratio, test_ratio):
+    image_list = os.listdir(image_dir)
+    image_train_and_val, image_test, label_train_and_val, label_test = train_test_split(image_list, image_list,
+                                                                                        test_size=test_ratio)
 
-image_train, image_val, label_train, label_val = train_test_split(image_train_and_val, label_train_and_val,
-                                                                  test_size=validation_ratio / (
-                                                                          validation_ratio + train_ratio))
-
-
-def mkpath(save_path):
-    if not os.path.isdir(save_path):
-        os.mkdir(save_path)
-        for mode in ['training', 'validation', 'test']:
-            mode_path = os.path.join(save_path, mode)
-            os.mkdir(mode_path)
-            os.mkdir(os.path.join(mode_path, 'image'))
-            os.mkdir(os.path.join(mode_path, 'labels'))
-    return save_path
-
-
-mkpath(save_path)
+    image_train, image_val, label_train, label_val = train_test_split(image_train_and_val, label_train_and_val,
+                                                                      test_size=validation_ratio / (
+                                                                              validation_ratio + train_ratio))
+    return image_train, image_val, image_test
 
 
 def crop_image(image, label, crop_size=500, threshold=1500):
@@ -60,9 +35,8 @@ def crop_image(image, label, crop_size=500, threshold=1500):
     return image, label
 
 
-def saveimg(name_list=image_train, mode='training'):
+def saveimg(name_list, data_dir, label_dir, save_path, large_threshold, mode='training'):
     for idx in range(len(name_list)):
-
         image_path = os.path.join(data_dir, name_list[idx])
         label_path = os.path.join(label_dir, name_list[idx])
         img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
@@ -98,24 +72,4 @@ def crop_process(imgdir, labdir, crop_size=10):
     return 'finish cropped'
 
 
-if __name__ == '__main__':
-    # create
-    saveimg(image_train, mode='training')
-    saveimg(image_val, mode='validation')
-    saveimg(image_test, mode='test')
 
-    # crop process
-    for mode in ['training', 'validation', 'test']:
-        my_dir = os.path.join(r'C:\Users\75209\Desktop\Inbreat_Image_splitted_10_16', mode)
-        img_dir = os.path.join(my_dir, 'image')
-        lab_dir = os.path.join(my_dir, 'labels')
-        crop_process(img_dir, lab_dir, crop_size=800)
-    print('finish dataset split')
-    #
-    # img_dir = 'C:\\Users\\75209\\Desktop\\Inbreat_Image_splitted_10_10\\validation\\image\\20587638.png'
-    # lab_dir = 'C:\\Users\\75209\\Desktop\\Inbreat_Image_splitted_10_10\\validation\\labels\\20587638.png'
-    # img = cv2.imread(img_dir, cv2.IMREAD_GRAYSCALE)
-    # label = cv2.imread(lab_dir, cv2.IMREAD_GRAYSCALE)
-    # img, label = crop_image(img, label, crop_size=400)
-    # cv2.imwrite(img_dir, img)
-    # cv2.imwrite(lab_dir, label)
