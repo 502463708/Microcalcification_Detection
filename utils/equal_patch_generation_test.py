@@ -17,37 +17,31 @@ def ParseArguments():
                         default='/data/lars/data/Inbreast-splitted-data-with-pixel-level-labels/',
                         help='Destination data root dir.')
 
-    parser.add_argument('--dataset_type',
-                        type=str,
-                        default='test',
-                        help='The type of dataset (training, validation, test).')
-
     args = parser.parse_args()
 
     assert os.path.exists(args.data_root_dir), 'Source data root dir does not exist.'
-    positive_path = os.path.join(args.dst_data_root_dir, 'positive_patches', args.dataset_type)
-    negative_path = positive_path.replace('positive', 'negative')
 
-    if os.path.exists(positive_path):
-        shutil.rmtree(positive_path)
-    if os.path.exists(negative_path):
-        shutil.rmtree(negative_path)
-    if not os.path.exists(args.dst_data_root_dir):
-        os.mkdir(args.dst_data_root_dir)
-        os.mkdir(os.path.join(args.dst_data_root_dir, 'positive_patches'))
-        os.mkdir(os.path.join(args.dst_data_root_dir, 'negative_patches'))
-    os.mkdir(positive_path)
-    os.mkdir(negative_path)
+    if os.path.exists(args.dst_data_root_dir):
+        shutil.rmtree(args.dst_data_root_dir)
+    os.mkdir(args.dst_data_root_dir)
+    for patche_type in ['positive_patches', 'negative_patches']:
+        patch_type_dir = os.path.join(args.dst_data_root_dir, patche_type)
+        os.mkdir(patch_type_dir)
+        for mode in ['training', 'validation', 'test']:
+            mode_dir = os.path.join(patch_type_dir, mode)
+            os.mkdir(mode_dir)
+            os.mkdir(os.path.join(mode_dir, 'images'))
+            os.mkdir(os.path.join(mode_dir, 'labels'))
 
     return args
 
 
 def TestEqualPatchGeneration(args):
-    SaveEqualPatch(args.data_root_dir, args.dst_root_dir, mode=args.dataset_type)
+    for mode in ['training', 'validation', 'test']:
+        SaveEqualPatch(args.data_root_dir, args.dst_root_dir, mode)
 
 
-
-if __name__=='__main__':
-    args=ParseArguments()
+if __name__ == '__main__':
+    args = ParseArguments()
 
     TestEqualPatchGeneration(args)

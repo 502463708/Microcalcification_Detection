@@ -26,13 +26,16 @@ def SaveEqualPatch(data_root_dir, dst_root_dir, mode='training'):
         file_image_dir=os.path.join(positive_image_dir,file)
         dst_file_image_dir=file_image_dir.replace(data_root_dir,dst_root_dir)
         shutil.copy(file_image_dir,dst_file_image_dir)
+
         file_label_dir=file_image_dir.replace('images','labels')
         dst_file_label_dir=dst_file_image_dir.replace('images','labels')
         shutil.copy(file_label_dir,dst_file_label_dir)
+
     for file in chose_negative_list:
         file_image_dir=os.path.join(negative_image_dir,file)
         dst_file_image_dir=file_image_dir.replace(data_root_dir,dst_root_dir)
         shutil.copy(file_image_dir,dst_file_image_dir)
+
         file_label_dir=file_image_dir.replace('images','labels')
         dst_file_label_dir=dst_file_image_dir.replace('images','labels')
         shutil.copy(file_label_dir,dst_file_label_dir)
