@@ -5,6 +5,7 @@ import shutil
 import xml.etree.ElementTree as ET
 
 from skimage.draw import polygon
+from skimage import measure
 
 
 class Annotation(object):
@@ -57,39 +58,57 @@ def generate_null_label(absolute_src_image_path, absolute_dst_label_path):
 
 
 def generate_label_according_to_xml(absolute_src_image_path, absolute_src_xml_path, absolute_dst_label_path,
-                                    area_threshold=0.006):
+                                    diameter_threshold=14):
     image_np = cv2.imread(absolute_src_image_path, cv2.IMREAD_GRAYSCALE)
     xml_obj = ImageLevelAnnotationCollection(absolute_src_xml_path)
     label_np = np.zeros_like(image_np)  # column, row
 
+    # mask calcification on label images
     for annotation in xml_obj.annotation_list:
+        cal_count = 0
+        mass_count = 0
         if annotation.name == 'Calcification':
-            if annotation.area > area_threshold:
-                coordinate_list = np.array(annotation.coordinate_list) - 1
-                cc, rr = polygon(coordinate_list[:, 0], coordinate_list[:, 1])
-                label_np[rr, cc] = 125
+            cal_count += 1
+            coordinate_list = np.array(annotation.coordinate_list) - 1
+            cc, rr = polygon(coordinate_list[:, 0], coordinate_list[:, 1])
+            if len(rr) == 0:
+                for i in coordinate_list:
+                    label_np[i[1], i[0]] = 255
             else:
-                coordinate_list = np.array(annotation.coordinate_list) - 1
-                cc, rr = polygon(coordinate_list[:, 0], coordinate_list[:, 1])
-                # row ,column
-                if len(rr) == 0:
-                    for i in coordinate_list:
-                        label_np[i[1], i[0]] = 255
-                else:
-                    label_np[rr, cc] = 255
+                label_np[rr, cc] = 255  # row ,column
 
-        elif annotation.name != 'Spiculated Region':
+    # mask mass on label images
+    for annotation in xml_obj.annotation_list:
+        if annotation.name != 'Spiculated Region' and annotation.name != 'Calcification':
+            mass_count += 1
             coordinate_list = np.array(annotation.coordinate_list) - 1
             cc, rr = polygon(coordinate_list[:, 0], coordinate_list[:, 1])
             label_np[rr, cc] = 125
 
+    #
+    region = measure.label(input=label_np, connectivity=2)
+    props = measure.regionprops(region)
+    out_cal = 0
+    for prop in props:
+        if prop.equivalent_diameter >= diameter_threshold:
+            out_cal += 1
+            crds = prop.coords
+            for crd in crds:
+                hd = crd[0]
+                wd = crd[1]
+                label_np[hd][wd] = 125
+
     cv2.imwrite(absolute_dst_label_path, label_np)
+    print('-------------------------------------------------------------------------------------------------------')
+    print('On xml file, there are {} Calcifications and {} Mass {}'.format(cal_count, mass_count))
+    print('after filted {} calcifications, there are {} calcifications and {} mass'.format(out_cal, cal_count - out_cal,
+                                                                                           mass_count + out_cal))
 
     return
 
 
 def image_with_xml2image_with_mask(absolute_src_image_path, absolute_src_xml_path, absolute_dst_image_path,
-                                   absolute_dst_label_path, area_threshold):
+                                   absolute_dst_label_path, diameter_threshold):
     assert os.path.exists(absolute_src_image_path)
 
     shutil.copyfile(absolute_src_image_path, absolute_dst_image_path)
@@ -99,9 +118,9 @@ def image_with_xml2image_with_mask(absolute_src_image_path, absolute_src_xml_pat
         generate_null_label(absolute_src_image_path, absolute_dst_label_path)
     else:
         print('This image has xml annotation.')
-        if area_threshold == -1:
+        if diameter_threshold == -1:
             generate_label_according_to_xml(absolute_src_image_path, absolute_src_xml_path, absolute_dst_label_path)
         else:
             generate_label_according_to_xml(absolute_src_image_path, absolute_src_xml_path, absolute_dst_label_path,
-                                            area_threshold)
+                                            diameter_threshold)
     return

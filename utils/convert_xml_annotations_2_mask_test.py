@@ -11,14 +11,15 @@ def ParseArguments():
                         type=str,
                         default='/data/lars/data/Inbreast-raw-data-with-XML-annotations/',
                         help='Source data root dir.')
-    parser.add_argument('--area_threshold',
-                        type=float,
-                        default=-1,
-                        help='The threshold to filter large calcifications.')
     parser.add_argument('--dst_data_root_dir',
                         type=str,
                         default='/data/lars/data/Inbreast-raw-data-with-pixel-level-labels/',
                         help='Destination data root dir.')
+    parser.add_argument('--diameter_threshold_threshold',
+                        type=float,
+                        default=14,
+                        help='The diameter threshold to filter large calcifications.')
+
 
     args = parser.parse_args()
 
@@ -59,7 +60,7 @@ def TestConvertXml2Mask(args):
         absolute_dst_label_path = os.path.join(dst_label_dir, image_filename)
 
         image_with_xml2image_with_mask(absolute_src_image_path, absolute_src_xml_path, absolute_dst_image_path,
-                                       absolute_dst_label_path, args.area_threshold)
+                                       absolute_dst_label_path, args.diameter_threshold)
 
     return
 

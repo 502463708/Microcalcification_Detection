@@ -35,22 +35,13 @@ def crop_image(image, label, crop_size=500, threshold=1500):
     return image, label
 
 
-def saveimg(name_list, data_dir, label_dir, save_path, large_threshold, mode='training'):
+def saveimg(name_list, data_dir, label_dir, save_path, mode='training'):
     for idx in range(len(name_list)):
         image_path = os.path.join(data_dir, name_list[idx])
         label_path = os.path.join(label_dir, name_list[idx])
         img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
         img, label = crop_image(img, label, threshold=5000)
-        region = measure.label(input=label, connectivity=2)
-        props = measure.regionprops(region)
-        for prop in props:
-            if prop.area >= large_threshold:
-                crds = prop.coords
-                for crd in crds:
-                    hd = crd[0]
-                    wd = crd[1]
-                    label[hd][wd] = 125
         mode_path = os.path.join(save_path, mode)
         save_name = name_list[idx]
         assert img.shape == label.shape
