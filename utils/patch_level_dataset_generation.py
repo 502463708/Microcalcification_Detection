@@ -3,10 +3,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import sys
 
-
-# sys.exit(0)
 
 def ParseArguments():
     parser = argparse.ArgumentParser()
@@ -57,7 +54,7 @@ def show_images(images: list) -> None:
 
 
 def makedir(save_dir):
-    if os.path.isdir(save_dir) == False:
+    if not os.path.isdir(save_dir):
         os.mkdir(save_dir)
         for i in ['positive_patches', 'negative_patches']:
             os.mkdir(os.path.join(save_dir, i))
@@ -146,4 +143,5 @@ def TestPatchLevelSplit(args):
 
 if __name__ == '__main__':
     args = ParseArguments()
+
     TestPatchLevelSplit(args)
