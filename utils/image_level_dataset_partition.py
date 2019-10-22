@@ -50,7 +50,7 @@ def saveimg(name_list, data_dir, label_dir, save_path, large_threshold, mode='tr
                 for crd in crds:
                     hd = crd[0]
                     wd = crd[1]
-                    label[hd][wd] == 0
+                    label[hd][wd] = 125
         mode_path = os.path.join(save_path, mode)
         save_name = name_list[idx]
         assert img.shape == label.shape
@@ -70,6 +70,3 @@ def crop_process(imgdir, labdir, crop_size=10):
         cv2.imwrite(os.path.join(imgdir, i), img)
         cv2.imwrite(os.path.join(labdir, i), label)
     return 'finish cropped'
-
-
-
