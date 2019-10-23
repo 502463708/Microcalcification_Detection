@@ -5,43 +5,6 @@ import numpy as np
 import os
 
 
-def ParseArguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--data_root_dir',
-                        type=str,
-                        default='/data/lars/data/Inbreast-dataset-cropped-pathches-connected-component-1/',
-                        help='The source data dir.')
-
-    parser.add_argument('--data_saving_dir',
-                        type=str,
-                        default='/data/lars/models/20190920_uCs_reconstruction_connected_1_ttestlossv2_default_dilation_radius_14/',
-                        help='The dataset saved dir.')
-
-    parser.add_argument('--dataset_type',
-                        type=str,
-                        default='test',
-                        help='The type of dataset (training, validation, test).')
-
-    parser.add_argument('--patch_size',
-                        type=tuple,
-                        default=(112, 112),
-                        help='The height and width of patch.')
-
-    parser.add_argument('--patch_stride',
-                        type=int,
-                        default=56,
-                        help='The stride move from one patch to another ')
-
-    parser.add_argument('--patch_threshold',
-                        type=int,
-                        default=30000,
-                        help='patch which np.sum is lower than threshold will be discarded')
-
-    args = parser.parse_args()
-
-    return args
-
-
 def show_images(images: list) -> None:
     n: int = len(images)
     f = plt.figure()
@@ -66,7 +29,7 @@ def makedir(save_dir):
     return save_dir
 
 
-def LoadImage(folder_dir, mode='test'):
+def load_image(folder_dir, mode='test'):
     image_dir = os.path.join(folder_dir, mode, 'images')
     label_dir = os.path.join(folder_dir, mode, 'labels')
     name_list = os.listdir(image_dir)
@@ -84,7 +47,7 @@ def LoadImage(folder_dir, mode='test'):
     return name_list, image_list, label_list, mode
 
 
-def ExtractPatch(image, patch_size, stride):
+def extract_patch(image, patch_size, stride):
     assert len(image.shape) == 2
     shape = image.shape  # H, W
     image_patch_list = list()
@@ -106,40 +69,30 @@ def ExtractPatch(image, patch_size, stride):
     return image_patch_list
 
 
-def save_patch(save_dir, mode, image_patch_list, label_patch_list, image_name, threshold=20000):
-    print(len(image_patch_list), len(label_patch_list), image_name)
+def save_patch(save_dir, mode, image_patch_list, label_patch_list, image_name, pixel_threshold=1,
+               area_threshold=112 * 112 * 0.5):
+    print('-------------------------------------------------------------------------------------------------------')
+    print('Processing on {}'.format(image_name))
+    pos_patch_count = 0
+    neg_patch_count = 0
     for idx in range(len(image_patch_list)):
         image_patch = image_patch_list[idx]
         label_patch = label_patch_list[idx]
-        if np.where(label_patch == 125)[0].shape[0] != 0 or np.sum(image_patch) >= threshold:
+        if np.where(label_patch == 125)[0].shape[0] != 0 or np.sum(image_patch < pixel_threshold) >= area_threshold:
             continue
         elif np.sum(label_patch == 255) >= 0.01:
+            pos_patch_count += 1
             dir_name = os.path.join(save_dir, 'positive_patches', mode)
             save_name = 'positive' + str(idx) + '_' + image_name
             cv2.imwrite(os.path.join(dir_name, 'images', save_name), image_patch)
             cv2.imwrite(os.path.join(dir_name, 'labels', save_name), label_patch)
         elif np.sum(label_patch) <= 0.01:
+            neg_patch_count += 1
             dir_name = os.path.join(save_dir, 'negative_patches', mode)
             save_name = 'negative' + str(idx) + '_' + image_name
             cv2.imwrite(os.path.join(dir_name, 'images', save_name), image_patch)
             cv2.imwrite(os.path.join(dir_name, 'labels', save_name), label_patch)
+    print('finish saving {} positive patches, {} negative patches. \n Totally {} patches have be saved '.format(
+        pos_patch_count, neg_patch_count, pos_patch_count + neg_patch_count))
 
     return ('finish save patch')
-
-
-def TestPatchLevelSplit(args):
-    mysave_dir = makedir(args.data_saving_dir)
-    for mod in ['training', 'validation', 'test']:
-        myname_list, myimage_list, mylabel_list, mymode = LoadImage(
-            folder_dir=args.data_root_dir, mode=mod)
-        for idx in range(len(myname_list)):
-            myimage_patch_list = ExtractPatch(myimage_list[idx], patch_size=args.patch_size, stride=args.stride)
-            mylabel_patch_list = ExtractPatch(mylabel_list[idx], patch_size=args.patch_size, stride=args.stride)
-            save_patch(mysave_dir, mymode, myimage_patch_list, mylabel_patch_list, myname_list[idx],
-                       threshold=args.patch_threshold)
-
-
-if __name__ == '__main__':
-    args = ParseArguments()
-
-    TestPatchLevelSplit(args)
