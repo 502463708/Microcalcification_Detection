@@ -18,6 +18,14 @@ class Annotation(object):
 
         return
 
+    def print_details(self):
+        print('  name: {}'.format(self.name))
+        print('  area: {}'.format(self.area))
+        print('  pixel_number: {}'.format(self.pixel_number))
+        print('  *****************************************************************************************************')
+
+        return
+
     def get_coordinate_list(self, coordinate_root_node):
         coordinate_list = list()
         coordinate_child_nodes = coordinate_root_node.getchildren()
@@ -61,66 +69,116 @@ def generate_label_according_to_xml(absolute_src_image_path, absolute_src_xml_pa
                                     diameter_threshold=14):
     image_np = cv2.imread(absolute_src_image_path, cv2.IMREAD_GRAYSCALE)
     xml_obj = ImageLevelAnnotationCollection(absolute_src_xml_path)
+
     label_np = np.zeros_like(image_np)  # column, row
+    calcification_mask_np = np.zeros_like(image_np)  # column, row
+    other_lesion_mask_np = np.zeros_like(image_np)  # column, row
 
-    # mask calcification on label images
+    # for statistical purpose
+    qualified_calcification_count_image_level = 0
+    outlier_calcification_count_image_level = 0
+    other_lesion_count_image_level = 0
+
+    # generate calcification_mask_np and other_lesion_mask_np
     for annotation in xml_obj.annotation_list:
-        cal_count = 0
-        mass_count = 0
-        if annotation.name == 'Calcification':
-            cal_count += 1
-            coordinate_list = np.array(annotation.coordinate_list) - 1
-            cc, rr = polygon(coordinate_list[:, 0], coordinate_list[:, 1])
+        annotation.print_details()
+
+        # convert the outline annotation into area annotation
+        coordinate_list = np.array(annotation.coordinate_list) - 1
+        cc, rr = polygon(coordinate_list[:, 0], coordinate_list[:, 1])
+
+        # for the calcification annotations
+        if annotation.name in ['Calcification', 'Calcifications', 'Unnamed', 'Point 1', 'Point 3']:
+            # in case that only one pixel is annotated
             if len(rr) == 0:
-                for i in coordinate_list:
-                    label_np[i[1], i[0]] = 255
+                for coordinate in coordinate_list:
+                    calcification_mask_np[coordinate[1], coordinate[0]] = 255
             else:
-                label_np[rr, cc] = 255  # row ,column
+                # to avoid the situation that coordinate indexes get out of range
+                height, width = image_np.shape
+                rr = np.clip(rr, 0, height - 1)
+                cc = np.clip(cc, 0, width - 1)
+                calcification_mask_np[rr, cc] = 255  # row ,column
 
-    # mask mass on label images
-    for annotation in xml_obj.annotation_list:
-        if annotation.name != 'Spiculated Region' and annotation.name != 'Calcification':
-            mass_count += 1
-            coordinate_list = np.array(annotation.coordinate_list) - 1
-            cc, rr = polygon(coordinate_list[:, 0], coordinate_list[:, 1])
-            label_np[rr, cc] = 125
+        # for the other lesion annotations
+        else:
+            other_lesion_count_image_level += 1
+            # in case that only one pixel is annotated
+            if len(rr) == 0:
+                for coordinate in coordinate_list:
+                    other_lesion_mask_np[coordinate[1], coordinate[0]] = 255
+            else:
+                # to avoid the situation that coordinate indexes get out of range
+                height, width = image_np.shape
+                rr = np.clip(rr, 0, height - 1)
+                cc = np.clip(cc, 0, width - 1)
+                other_lesion_mask_np[rr, cc] = 255  # row ,column
 
-    #
-    region = measure.label(input=label_np, connectivity=2)
-    props = measure.regionprops(region)
-    out_cal = 0
-    for prop in props:
+    # analyse the connected components for calcification_mask_np
+    calcification_connected_components = measure.label(input=calcification_mask_np, connectivity=2)
+    calcification_connected_component_props = measure.regionprops(calcification_connected_components)
+
+    for prop in calcification_connected_component_props:
+        # a large calcification is considered as an outlier calcification
         if prop.equivalent_diameter >= diameter_threshold:
-            out_cal += 1
-            crds = prop.coords
-            for crd in crds:
-                hd = crd[0]
-                wd = crd[1]
+            outlier_calcification_count_image_level += 1
+            coordinates = prop.coords
+            for coordinate in coordinates:
+                hd = coordinate[0]
+                wd = coordinate[1]
                 label_np[hd][wd] = 125
 
-    cv2.imwrite(absolute_dst_label_path, label_np)
-    print('-------------------------------------------------------------------------------------------------------')
-    print('On xml file, there are {} Calcifications and {} Mass {}'.format(cal_count, mass_count))
-    print('after filted {} calcifications, there are {} calcifications and {} mass'.format(out_cal, cal_count - out_cal,
-                                                                                           mass_count + out_cal))
+        # a tiny calcification is considered as a qualified calcification
+        else:
+            qualified_calcification_count_image_level += 1
+            coordinates = prop.coords
+            for coordinate in coordinates:
+                hd = coordinate[0]
+                wd = coordinate[1]
+                label_np[hd][wd] = 255
 
-    return
+    label_np[other_lesion_mask_np == 255] = 125
+
+    cv2.imwrite(absolute_dst_label_path, label_np)
+    print('This image contains {} qualified calcifications.'.format(qualified_calcification_count_image_level))
+    print('This image contains {} outlier calcifications.'.format(outlier_calcification_count_image_level))
+    print('This image contains {} other lesions.'.format(other_lesion_count_image_level))
+
+    return qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
+           other_lesion_count_image_level
 
 
 def image_with_xml2image_with_mask(absolute_src_image_path, absolute_src_xml_path, absolute_dst_image_path,
                                    absolute_dst_label_path, diameter_threshold):
+    # the source image must exist
     assert os.path.exists(absolute_src_image_path)
 
+    # copy the image file into the destination image folder
     shutil.copyfile(absolute_src_image_path, absolute_dst_image_path)
 
+    # for statistical purpose
+    qualified_calcification_count_image_level = 0
+    outlier_calcification_count_image_level = 0
+    other_lesion_count_image_level = 0
+
+    # if this image does not have its corresponding xml file -> generate a mask which is completely filled with 0
     if not os.path.exists(absolute_src_xml_path):
         print('This image does not have xml annotation.')
         generate_null_label(absolute_src_image_path, absolute_dst_label_path)
+    # if this image has its corresponding xml file -> generate a mask according to its xml file
     else:
         print('This image has xml annotation.')
         if diameter_threshold == -1:
-            generate_label_according_to_xml(absolute_src_image_path, absolute_src_xml_path, absolute_dst_label_path)
+            qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
+            other_lesion_count_image_level = generate_label_according_to_xml(absolute_src_image_path,
+                                                                             absolute_src_xml_path,
+                                                                             absolute_dst_label_path)
         else:
-            generate_label_according_to_xml(absolute_src_image_path, absolute_src_xml_path, absolute_dst_label_path,
-                                            diameter_threshold)
-    return
+            qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
+            other_lesion_count_image_level = generate_label_according_to_xml(absolute_src_image_path,
+                                                                             absolute_src_xml_path,
+                                                                             absolute_dst_label_path,
+                                                                             diameter_threshold)
+
+    return qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
+           other_lesion_count_image_level

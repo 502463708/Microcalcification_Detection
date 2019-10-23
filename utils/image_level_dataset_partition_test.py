@@ -32,11 +32,6 @@ def ParseArguments():
                         default=0.2,
                         help='the ratio of test dataset over all')
 
-    parser.add_argument('--area_threshold',
-                        type=float,
-                        default=7 * 7 * 3.14,
-                        help='mask area larger than threshold will be discarded')
-
     parser.add_argument('--crop_size',
                         type=int,
                         default=600,
@@ -72,11 +67,11 @@ def TestImageLevelSplit(args):
                                                                    test_ratio=args.test_ratio)
 
     saveimg(name_list=image_train, data_dir=image_data_root_dir, label_dir=label_data_root_dir,
-            save_path=args.dst_data_root_dir, large_threshold=args.area_threshold, mode='training')
+            save_path=args.dst_data_root_dir, mode='training')
     saveimg(name_list=image_val, data_dir=image_data_root_dir, label_dir=label_data_root_dir,
-            save_path=args.dst_data_root_dir, large_threshold=args.area_threshold, mode='validation')
+            save_path=args.dst_data_root_dir, mode='validation')
     saveimg(name_list=image_test, data_dir=image_data_root_dir, label_dir=label_data_root_dir,
-            save_path=args.dst_data_root_dir, large_threshold=args.area_threshold, mode='test')
+            save_path=args.dst_data_root_dir, mode='test')
 
     # data images crop
     for mode in ['training', 'validation', 'test']:

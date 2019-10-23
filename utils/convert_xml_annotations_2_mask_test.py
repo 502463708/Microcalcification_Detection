@@ -15,18 +15,22 @@ def ParseArguments():
                         type=str,
                         default='/data/lars/data/Inbreast-raw-data-with-pixel-level-labels/',
                         help='Destination data root dir.')
-    parser.add_argument('--diameter_threshold_threshold',
+    parser.add_argument('--diameter_threshold',
                         type=float,
-                        default=14,
-                        help='The diameter threshold to filter large calcifications.')
-
+                        default=-1,
+                        help='The calcifications whose diameter >= diameter_threshold will be discarded,'
+                             '-1 -> the default diameter_threshold = 14.')
 
     args = parser.parse_args()
 
+    # the source data root dir must exist
     assert os.path.exists(args.src_data_root_dir), 'Source data root dir does not exist.'
 
+    # remove the destination data root dir if it already exists
     if os.path.exists(args.dst_data_root_dir):
         shutil.rmtree(args.dst_data_root_dir)
+
+    # create brand new destination data root dir
     os.mkdir(args.dst_data_root_dir)
     os.mkdir(os.path.join(args.dst_data_root_dir, 'images'))
     os.mkdir(os.path.join(args.dst_data_root_dir, 'labels'))
@@ -41,10 +45,16 @@ def TestConvertXml2Mask(args):
     dst_image_dir = os.path.join(args.dst_data_root_dir, 'images')
     dst_label_dir = os.path.join(args.dst_data_root_dir, 'labels')
 
+    # the source data root dir must contain images and labels
     assert os.path.exists(src_image_dir)
     assert os.path.exists(src_xml_dir)
 
     image_filename_list = os.listdir(src_image_dir)
+
+    # for statistical purpose
+    qualified_calcification_count_dataset_level = 0
+    outlier_calcification_count_dataset_level = 0
+    other_lesion_count_dataset_level = 0
 
     current_idx = 0
     for image_filename in image_filename_list:
@@ -59,8 +69,20 @@ def TestConvertXml2Mask(args):
         absolute_dst_image_path = os.path.join(dst_image_dir, image_filename)
         absolute_dst_label_path = os.path.join(dst_label_dir, image_filename)
 
-        image_with_xml2image_with_mask(absolute_src_image_path, absolute_src_xml_path, absolute_dst_image_path,
-                                       absolute_dst_label_path, args.diameter_threshold)
+        qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
+        other_lesion_count_image_level = image_with_xml2image_with_mask(absolute_src_image_path, absolute_src_xml_path,
+                                                                        absolute_dst_image_path,
+                                                                        absolute_dst_label_path,
+                                                                        args.diameter_threshold)
+
+        qualified_calcification_count_dataset_level += qualified_calcification_count_image_level
+        outlier_calcification_count_dataset_level += outlier_calcification_count_image_level
+        other_lesion_count_dataset_level += other_lesion_count_image_level
+
+    print('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
+    print('This dataset contains {} qualified calcifications.'.format(qualified_calcification_count_dataset_level))
+    print('This dataset contains {} outlier calcifications.'.format(outlier_calcification_count_dataset_level))
+    print('This dataset contains {} other lesions.'.format(other_lesion_count_dataset_level))
 
     return
 
