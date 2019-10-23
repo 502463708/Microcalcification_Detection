@@ -111,20 +111,18 @@ def save_patch(save_dir, mode, image_patch_list, label_patch_list, image_name, t
     for idx in range(len(image_patch_list)):
         image_patch = image_patch_list[idx]
         label_patch = label_patch_list[idx]
-        if np.sum(image_patch) >= threshold:
-            if np.sum(np.logical_and(label_patch != 255, label_patch != 0)) >= 0.1:
-                continue
-            elif np.sum(label_patch == 255) >= 0.01:
-                dir_name = os.path.join(save_dir, 'positive_patches', mode)
-                save_name = 'positive' + str(idx) + '_' + image_name
-                cv2.imwrite(os.path.join(dir_name, 'images', save_name), image_patch)
-                cv2.imwrite(os.path.join(dir_name, 'labels', save_name), label_patch)
-
-            elif np.sum(label_patch) <= 0.01:
-                dir_name = os.path.join(save_dir, 'negative_patches', mode)
-                save_name = 'negative' + str(idx) + '_' + image_name
-                cv2.imwrite(os.path.join(dir_name, 'images', save_name), image_patch)
-                cv2.imwrite(os.path.join(dir_name, 'labels', save_name), label_patch)
+        if np.where(label_patch == 125)[0].shape[0] != 0 or np.sum(image_patch) >= threshold:
+            continue
+        elif np.sum(label_patch == 255) >= 0.01:
+            dir_name = os.path.join(save_dir, 'positive_patches', mode)
+            save_name = 'positive' + str(idx) + '_' + image_name
+            cv2.imwrite(os.path.join(dir_name, 'images', save_name), image_patch)
+            cv2.imwrite(os.path.join(dir_name, 'labels', save_name), label_patch)
+        elif np.sum(label_patch) <= 0.01:
+            dir_name = os.path.join(save_dir, 'negative_patches', mode)
+            save_name = 'negative' + str(idx) + '_' + image_name
+            cv2.imwrite(os.path.join(dir_name, 'images', save_name), image_patch)
+            cv2.imwrite(os.path.join(dir_name, 'labels', save_name), label_patch)
 
     return ('finish save patch')
 

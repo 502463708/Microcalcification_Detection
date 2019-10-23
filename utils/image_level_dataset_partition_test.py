@@ -2,7 +2,7 @@ import argparse
 import os
 import shutil
 
-from utils.image_level_dataset_partition import crop_process, ImageLevelDatsetPartition, saveimg
+from utils.image_level_dataset_partition import crop_process, image_level_datset_partition, saveimg
 
 
 def ParseArguments():
@@ -14,7 +14,7 @@ def ParseArguments():
 
     parser.add_argument('--dst_data_root_dir',
                         type=str,
-                        default='/data/lars/data/Inbreast-splitted-data-with-pixel-level-labels/',
+                        default='/data/lars/data/Inbreast-roi-data-with-pixel-level-labels-divided/',
                         help='Destination data root dir.')
 
     parser.add_argument('--train_ratio',
@@ -61,10 +61,10 @@ def TestImageLevelSplit(args):
     assert os.path.exists(image_data_root_dir), 'Source image data root dir does not exist.'
     assert os.path.exists(label_data_root_dir), 'Source label data root dir does not exist.'
 
-    image_train, image_val, image_test = ImageLevelDatsetPartition(image_data_root_dir,
-                                                                   train_ratio=args.train_ratio,
-                                                                   validation_ratio=args.validation_ratio,
-                                                                   test_ratio=args.test_ratio)
+    image_train, image_val, image_test = image_level_datset_partition(image_data_root_dir,
+                                                                      train_ratio=args.train_ratio,
+                                                                      validation_ratio=args.validation_ratio,
+                                                                      test_ratio=args.test_ratio)
 
     saveimg(name_list=image_train, data_dir=image_data_root_dir, label_dir=label_data_root_dir,
             save_path=args.dst_data_root_dir, mode='training')
@@ -76,12 +76,15 @@ def TestImageLevelSplit(args):
     # data images crop
     for mode in ['training', 'validation', 'test']:
         my_dir = os.path.join(args.dst_data_root_dir, mode)
-        img_dir = os.path.join(my_dir, 'image')
+        img_dir = os.path.join(my_dir, 'images')
         lab_dir = os.path.join(my_dir, 'labels')
+        crop_process(img_dir, lab_dir, crop_size=args.crop_size)
         crop_process(img_dir, lab_dir, crop_size=args.crop_size)
         crop_process(img_dir, lab_dir, crop_size=args.crop_size)
 
     print('finish dataset split')
+
+    return
 
 
 if __name__ == '__main__':

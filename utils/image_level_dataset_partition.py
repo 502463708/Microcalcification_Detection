@@ -1,12 +1,11 @@
 import cv2
 import os
 
-from skimage import measure
 from sklearn.model_selection import train_test_split
 
 
 # dataset split
-def ImageLevelDatsetPartition(image_dir, train_ratio, validation_ratio, test_ratio):
+def image_level_datset_partition(image_dir, train_ratio, validation_ratio, test_ratio):
     image_list = os.listdir(image_dir)
     image_train_and_val, image_test, label_train_and_val, label_test = train_test_split(image_list, image_list,
                                                                                         test_size=test_ratio)
@@ -32,6 +31,7 @@ def crop_image(image, label, crop_size=500, threshold=1500):
         if image[:, -1].sum() < threshold:
             image = image[:, :image.shape[1] - 1]
             label = label[:, :label.shape[1] - 1]
+
     return image, label
 
 
@@ -45,7 +45,7 @@ def saveimg(name_list, data_dir, label_dir, save_path, mode='training'):
         mode_path = os.path.join(save_path, mode)
         save_name = name_list[idx]
         assert img.shape == label.shape
-        cv2.imwrite(os.path.join(mode_path, 'image', save_name), img)
+        cv2.imwrite(os.path.join(mode_path, 'images', save_name), img)
         cv2.imwrite(os.path.join(mode_path, 'labels', save_name), label)
 
     return 'finished save {}'.format(mode)
