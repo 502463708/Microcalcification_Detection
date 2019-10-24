@@ -2,7 +2,7 @@ import argparse
 import os
 import shutil
 
-from utils.image_level_dataset_partition import crop_process, image_level_datset_partition, saveimg
+from utils.image_level_dataset_split import crop_process, image_filename_list_split, crop_and_save_data
 
 
 def ParseArguments():
@@ -17,25 +17,31 @@ def ParseArguments():
                         default='/data/lars/data/Inbreast-roi-data-with-pixel-level-labels-divided/',
                         help='Destination data root dir.')
 
-    parser.add_argument('--train_ratio',
+    parser.add_argument('--random_seed',
+                        type=int,
+                        default=0,
+                        help='Set random seed for reduplicating the results.'
+                             '-1 -> do not set random seed.')
+
+    parser.add_argument('--training_ratio',
                         type=float,
                         default=0.6,
-                        help='the ratio of train dataset over all')
+                        help='The ratio of training set over all.')
 
     parser.add_argument('--validation_ratio',
                         type=float,
                         default=0.2,
-                        help='the ratio of validation dataset over all')
+                        help='The ratio of validation set over all.')
 
     parser.add_argument('--test_ratio',
                         type=float,
                         default=0.2,
-                        help='the ratio of test dataset over all')
+                        help='The ratio of test set over all.')
 
     parser.add_argument('--crop_size',
                         type=int,
                         default=600,
-                        help='the maximum size of cropping')
+                        help='The maximum size of cropping.')
 
     args = parser.parse_args()
 
@@ -45,33 +51,36 @@ def ParseArguments():
         shutil.rmtree(args.dst_data_root_dir)
     os.mkdir(args.dst_data_root_dir)
 
-    for mode in ['training', 'validation', 'test']:
-        mode_dir = os.path.join(args.dst_data_root_dir, mode)
-        os.mkdir(mode_dir)
-        os.mkdir(os.path.join(mode_dir, 'images'))
-        os.mkdir(os.path.join(mode_dir, 'labels'))
+    for dataset_type in ['training', 'validation', 'test']:
+        dataset_type_dir = os.path.join(args.dst_data_root_dir, dataset_type)
+        os.mkdir(dataset_type_dir)
+        os.mkdir(os.path.join(dataset_type_dir, 'images'))
+        os.mkdir(os.path.join(dataset_type_dir, 'labels'))
 
     return args
 
 
-def TestImageLevelSplit(args):
+def TestImageLevelDatasetSplit(args):
     image_data_root_dir = os.path.join(args.data_root_dir, 'images')
     label_data_root_dir = os.path.join(args.data_root_dir, 'labels')
 
     assert os.path.exists(image_data_root_dir), 'Source image data root dir does not exist.'
     assert os.path.exists(label_data_root_dir), 'Source label data root dir does not exist.'
 
-    image_train, image_val, image_test = image_level_datset_partition(image_data_root_dir,
-                                                                      train_ratio=args.train_ratio,
-                                                                      validation_ratio=args.validation_ratio,
-                                                                      test_ratio=args.test_ratio)
+    image_list_training, \
+    image_list_val, \
+    image_list_test = image_filename_list_split(image_data_root_dir,
+                                                training_ratio=args.training_ratio,
+                                                validation_ratio=args.validation_ratio,
+                                                test_ratio=args.test_ratio,
+                                                random_seed=args.random_seed)
 
-    saveimg(name_list=image_train, data_dir=image_data_root_dir, label_dir=label_data_root_dir,
-            save_path=args.dst_data_root_dir, mode='training')
-    saveimg(name_list=image_val, data_dir=image_data_root_dir, label_dir=label_data_root_dir,
-            save_path=args.dst_data_root_dir, mode='validation')
-    saveimg(name_list=image_test, data_dir=image_data_root_dir, label_dir=label_data_root_dir,
-            save_path=args.dst_data_root_dir, mode='test')
+    crop_and_save_data(filename_list=image_list_training, image_dir=image_data_root_dir, label_dir=label_data_root_dir,
+                       save_path=args.dst_data_root_dir, dataset_type='training')
+    crop_and_save_data(filename_list=image_list_val, image_dir=image_data_root_dir, label_dir=label_data_root_dir,
+                       save_path=args.dst_data_root_dir, dataset_type='validation')
+    crop_and_save_data(filename_list=image_list_test, image_dir=image_data_root_dir, label_dir=label_data_root_dir,
+                       save_path=args.dst_data_root_dir, dataset_type='test')
 
     # data images crop
     for mode in ['training', 'validation', 'test']:
@@ -90,4 +99,4 @@ def TestImageLevelSplit(args):
 if __name__ == '__main__':
     args = ParseArguments()
 
-    TestImageLevelSplit(args)
+    TestImageLevelDatasetSplit(args)
