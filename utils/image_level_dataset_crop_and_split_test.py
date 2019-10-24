@@ -7,14 +7,14 @@ from utils.image_level_dataset_crop_and_split import image_filename_list_split, 
 
 def ParseArguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_root_dir',
+    parser.add_argument('--src_data_root_dir',
                         type=str,
                         default='/data/lars/data/Inbreast-raw-data-with-pixel-level-labels/',
                         help='Source data root dir.')
 
     parser.add_argument('--dst_data_root_dir',
                         type=str,
-                        default='/data/lars/data/Inbreast-roi-data-with-pixel-level-labels-divided/',
+                        default='/data/lars/data/Inbreast-roi-extracted-radiograph-level-split-dataset/',
                         help='Destination data root dir.')
 
     parser.add_argument('--random_seed',
@@ -47,7 +47,7 @@ def ParseArguments():
 
     args = parser.parse_args()
 
-    assert os.path.exists(args.data_root_dir), 'Source data root dir does not exist.'
+    assert os.path.exists(args.src_data_root_dir), 'Source data root dir does not exist.'
 
     if os.path.exists(args.dst_data_root_dir):
         shutil.rmtree(args.dst_data_root_dir)
@@ -63,8 +63,8 @@ def ParseArguments():
 
 
 def TestImageLevelDatasetCropAndSplit(args):
-    image_data_root_dir = os.path.join(args.data_root_dir, 'images')
-    label_data_root_dir = os.path.join(args.data_root_dir, 'labels')
+    image_data_root_dir = os.path.join(args.src_data_root_dir, 'images')
+    label_data_root_dir = os.path.join(args.src_data_root_dir, 'labels')
 
     assert os.path.exists(image_data_root_dir), 'Source image data root dir does not exist.'
     assert os.path.exists(label_data_root_dir), 'Source label data root dir does not exist.'
