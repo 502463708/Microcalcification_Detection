@@ -35,17 +35,17 @@ def ParseArguments():
     parser.add_argument('--training_area_threshold',
                         type=float,
                         default=0.6,
-                        help='The maximum background area ratio duration for training set.')
+                        help='The maximum background area ratio endurance for training set.')
 
     parser.add_argument('--validation_area_threshold',
                         type=float,
                         default=0.6,
-                        help='The maximum background area ratio duration for validation set.')
+                        help='The maximum background area ratio endurance for validation set.')
 
     parser.add_argument('--test_area_threshold',
                         type=float,
                         default=0.1,
-                        help='The maximum background area ratio duration for test set.')
+                        help='The maximum background area ratio endurance for test set.')
 
     args = parser.parse_args()
 
