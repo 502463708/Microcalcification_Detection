@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 import os
 
 from sklearn.model_selection import train_test_split
@@ -27,36 +28,60 @@ def image_filename_list_split(image_dir, training_ratio, validation_ratio, test_
     return image_list_training, image_list_val, image_list_test
 
 
-def crop_image(image, label, crop_size=500, threshold=1500):
-    assert image.shape == label.shape
-    for i in range(crop_size):
-        if image[0, :].sum() < threshold:
-            image = image[1:, :]
-            label = label[1:, :]
-        if image[-1, :].sum() < threshold:
-            image = image[:image.shape[0] - 1, :]
-            label = label[:label.shape[0] - 1, :]
-        if image[:, 0].sum() < threshold:
-            image = image[:, 1:]
-            label = label[:, 1:]
-        if image[:, -1].sum() < threshold:
-            image = image[:, :image.shape[1] - 1]
-            label = label[:, :label.shape[1] - 1]
+def crop_image_and_label(image_np, label_np, intensity_threshold=2000):
+    assert image_np.shape == label_np.shape
+    assert len(image_np.shape) == 2
 
-    return image, label
+    height, width = image_np.shape
+
+    # calculate start_crop_column_idx and end_crop_column_idx
+    image_np_summed_along_with_column = image_np.sum(0)
+    column_idx_list = np.where(image_np_summed_along_with_column > intensity_threshold)[0]
+    start_crop_column_idx = 0
+    end_crop_column_idx = width - 1
+    if len(column_idx_list) > 0:
+        start_crop_column_idx = column_idx_list[0]
+        end_crop_column_idx = column_idx_list[-1]
+    print('  column idx: {} - {} -> {} - {}'.format(0, width - 1, start_crop_column_idx, end_crop_column_idx))
+
+    # calculate start_crop_row_idx and end_crop_row_idx
+    image_np_summed_along_with_row = image_np.sum(1)
+    row_idx_list = np.where(image_np_summed_along_with_row > intensity_threshold)[0]
+    start_crop_row_idx = 0
+    end_crop_row_idx = width - 1
+    if len(row_idx_list) > 0:
+        start_crop_row_idx = row_idx_list[0]
+        end_crop_row_idx = row_idx_list[-1]
+    print('  row idx: {} - {} -> {} - {}'.format(0, height - 1, start_crop_row_idx, end_crop_row_idx))
+
+    image_np = image_np[start_crop_row_idx: end_crop_row_idx, start_crop_column_idx:end_crop_column_idx]
+    label_np = label_np[start_crop_row_idx: end_crop_row_idx, start_crop_column_idx:end_crop_column_idx]
+
+    assert image_np.shape == label_np.shape
+
+    return image_np, label_np
 
 
-def crop_and_save_data(filename_list, image_dir, label_dir, save_path, dataset_type):
+def crop_and_save_data(filename_list, image_dir, label_dir, save_path, dataset_type, intensity_threshold):
     assert len(filename_list) > 0
 
+    current_idx = 0
     for filename in filename_list:
+        current_idx += 1
+        print('-------------------------------------------------------------------------------------------------------')
+        print('Processing {} out of {}: {} in {} set'.format(current_idx, len(filename_list), filename, dataset_type))
+
         image_path = os.path.join(image_dir, filename)
         label_path = os.path.join(label_dir, filename)
 
         image_np = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         label_np = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
 
-        image_np, label_np = crop_image(image_np, label_np, threshold=5000)
+        if intensity_threshold > 0:
+            image_np, label_np = crop_image_and_label(image_np, label_np, intensity_threshold)
+        else:
+            image_np, label_np = crop_image_and_label(image_np, label_np)
+
         assert image_np.shape == label_np.shape
 
         dst_data_dir = os.path.join(save_path, dataset_type)
@@ -64,16 +89,4 @@ def crop_and_save_data(filename_list, image_dir, label_dir, save_path, dataset_t
         cv2.imwrite(os.path.join(dst_data_dir, 'images', filename), image_np)
         cv2.imwrite(os.path.join(dst_data_dir, 'labels', filename), label_np)
 
-    return
-
-
-def crop_process(imgdir, labdir, crop_size=10):
-    image_list = os.listdir(imgdir)
-    for i in image_list:
-        img = cv2.imread(os.path.join(imgdir, i), cv2.IMREAD_GRAYSCALE)
-        label = cv2.imread(os.path.join(labdir, i), cv2.IMREAD_GRAYSCALE)
-        img, label = crop_image(img, label, crop_size)
-        assert img.shape == label.shape
-        cv2.imwrite(os.path.join(imgdir, i), img)
-        cv2.imwrite(os.path.join(labdir, i), label)
     return

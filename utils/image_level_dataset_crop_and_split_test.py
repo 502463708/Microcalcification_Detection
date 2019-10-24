@@ -2,7 +2,7 @@ import argparse
 import os
 import shutil
 
-from utils.image_level_dataset_split import crop_process, image_filename_list_split, crop_and_save_data
+from utils.image_level_dataset_crop_and_split import image_filename_list_split, crop_and_save_data
 
 
 def ParseArguments():
@@ -38,10 +38,12 @@ def ParseArguments():
                         default=0.2,
                         help='The ratio of test set over all.')
 
-    parser.add_argument('--crop_size',
+    parser.add_argument('--intensity_threshold',
                         type=int,
-                        default=600,
-                        help='The maximum size of cropping.')
+                        default=-1,
+                        help='The intensity threshold for cropping: row (column) with summed intensity less than '
+                             'intensity_threshold will be cropped out.'
+                             '-1 -> the default intensity_threshold 2000.')
 
     args = parser.parse_args()
 
@@ -60,7 +62,7 @@ def ParseArguments():
     return args
 
 
-def TestImageLevelDatasetSplit(args):
+def TestImageLevelDatasetCropAndSplit(args):
     image_data_root_dir = os.path.join(args.data_root_dir, 'images')
     label_data_root_dir = os.path.join(args.data_root_dir, 'labels')
 
@@ -76,22 +78,14 @@ def TestImageLevelDatasetSplit(args):
                                                 random_seed=args.random_seed)
 
     crop_and_save_data(filename_list=image_list_training, image_dir=image_data_root_dir, label_dir=label_data_root_dir,
-                       save_path=args.dst_data_root_dir, dataset_type='training')
+                       save_path=args.dst_data_root_dir, dataset_type='training',
+                       intensity_threshold=args.intensity_threshold)
     crop_and_save_data(filename_list=image_list_val, image_dir=image_data_root_dir, label_dir=label_data_root_dir,
-                       save_path=args.dst_data_root_dir, dataset_type='validation')
+                       save_path=args.dst_data_root_dir, dataset_type='validation',
+                       intensity_threshold=args.intensity_threshold)
     crop_and_save_data(filename_list=image_list_test, image_dir=image_data_root_dir, label_dir=label_data_root_dir,
-                       save_path=args.dst_data_root_dir, dataset_type='test')
-
-    # data images crop
-    for mode in ['training', 'validation', 'test']:
-        my_dir = os.path.join(args.dst_data_root_dir, mode)
-        img_dir = os.path.join(my_dir, 'images')
-        lab_dir = os.path.join(my_dir, 'labels')
-        crop_process(img_dir, lab_dir, crop_size=args.crop_size)
-        crop_process(img_dir, lab_dir, crop_size=args.crop_size)
-        crop_process(img_dir, lab_dir, crop_size=args.crop_size)
-
-    print('finish dataset split')
+                       save_path=args.dst_data_root_dir, dataset_type='test',
+                       intensity_threshold=args.intensity_threshold)
 
     return
 
@@ -99,4 +93,4 @@ def TestImageLevelDatasetSplit(args):
 if __name__ == '__main__':
     args = ParseArguments()
 
-    TestImageLevelDatasetSplit(args)
+    TestImageLevelDatasetCropAndSplit(args)
