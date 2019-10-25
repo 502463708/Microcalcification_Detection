@@ -14,7 +14,7 @@ def ParseArguments():
 
     parser.add_argument('--dst_data_root_dir',
                         type=str,
-                        default='/data/lars/data/Inbreast-patch-level-split-dataset-pos2neg-ratio-1/',
+                        default='/data/lars/data/Inbreast-patch-level-split-pos2neg-ratio-1-dataset/',
                         help='Destination data root dir.')
 
     parser.add_argument('--random_seed',
