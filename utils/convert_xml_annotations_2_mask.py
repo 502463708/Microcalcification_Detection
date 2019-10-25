@@ -85,57 +85,57 @@ def generate_label_according_to_xml(absolute_src_image_path, absolute_src_xml_pa
 
         # convert the outline annotation into area annotation
         coordinate_list = np.array(annotation.coordinate_list) - 1
-        cc, rr = polygon(coordinate_list[:, 0], coordinate_list[:, 1])
+        column_indexes, row_indexes = polygon(coordinate_list[:, 0], coordinate_list[:, 1])
 
         # for the calcification annotations
         if annotation.name in ['Calcification', 'Calcifications', 'Unnamed', 'Point 1', 'Point 3']:
             # in case that only one pixel is annotated
-            if len(rr) == 0:
+            if len(row_indexes) == 0:
                 for coordinate in coordinate_list:
                     calcification_mask_np[coordinate[1], coordinate[0]] = 255
             else:
                 # to avoid the situation that coordinate indexes get out of range
                 height, width = image_np.shape
-                rr = np.clip(rr, 0, height - 1)
-                cc = np.clip(cc, 0, width - 1)
-                calcification_mask_np[rr, cc] = 255  # row ,column
+                row_indexes = np.clip(row_indexes, 0, height - 1)
+                column_indexes = np.clip(column_indexes, 0, width - 1)
+                calcification_mask_np[row_indexes, column_indexes] = 255  # row ,column
 
         # for the other lesion annotations
         else:
             other_lesion_count_image_level += 1
             # in case that only one pixel is annotated
-            if len(rr) == 0:
+            if len(row_indexes) == 0:
                 for coordinate in coordinate_list:
                     other_lesion_mask_np[coordinate[1], coordinate[0]] = 255
             else:
                 # to avoid the situation that coordinate indexes get out of range
                 height, width = image_np.shape
-                rr = np.clip(rr, 0, height - 1)
-                cc = np.clip(cc, 0, width - 1)
-                other_lesion_mask_np[rr, cc] = 255  # row ,column
+                row_indexes = np.clip(row_indexes, 0, height - 1)
+                column_indexes = np.clip(column_indexes, 0, width - 1)
+                other_lesion_mask_np[row_indexes, column_indexes] = 255  # row ,column
 
     # analyse the connected components for calcification_mask_np
     calcification_connected_components = measure.label(input=calcification_mask_np, connectivity=2)
-    calcification_connected_component_props = measure.regionprops(calcification_connected_components)
+    calcification_connected_component_props = measure.regionprops(calcification_connected_components, coordinates='rc')
 
     for prop in calcification_connected_component_props:
         # a large calcification is considered as an outlier calcification
-        if prop.equivalent_diameter >= diameter_threshold:
+        if prop.major_axis_length >= diameter_threshold:
             outlier_calcification_count_image_level += 1
             coordinates = prop.coords
             for coordinate in coordinates:
-                hd = coordinate[0]
-                wd = coordinate[1]
-                label_np[hd][wd] = 125
+                row_idx = coordinate[0]
+                column_idx = coordinate[1]
+                label_np[row_idx][column_idx] = 125
 
         # a tiny calcification is considered as a qualified calcification
         else:
             qualified_calcification_count_image_level += 1
             coordinates = prop.coords
             for coordinate in coordinates:
-                hd = coordinate[0]
-                wd = coordinate[1]
-                label_np[hd][wd] = 255
+                row_idx = coordinate[0]
+                column_idx = coordinate[1]
+                label_np[row_idx][column_idx] = 255
 
     label_np[other_lesion_mask_np == 255] = 125
 
