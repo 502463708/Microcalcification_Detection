@@ -2,7 +2,7 @@ import argparse
 import os
 import shutil
 
-from utils.equal_patch_generation import SaveEqualPatch
+from utils.patch_level_dataset_negative_patch_removal import remove_negative_patches
 
 
 def ParseArguments():
@@ -14,8 +14,14 @@ def ParseArguments():
 
     parser.add_argument('--dst_data_root_dir',
                         type=str,
-                        default='/data/lars/data/Inbreast-splitted-data-with-pixel-level-labels/',
+                        default='/data/lars/data/Inbreast-patch-level-split-dataset-pos2neg-ratio-1/',
                         help='Destination data root dir.')
+
+    parser.add_argument('--random_seed',
+                        type=int,
+                        default=0,
+                        help='Set random seed for reduplicating the results.'
+                             '-1 -> do not set random seed.')
 
     args = parser.parse_args()
 
@@ -28,6 +34,7 @@ def ParseArguments():
     for patch_type in ['positive_patches', 'negative_patches']:
         patch_type_dir = os.path.join(args.dst_data_root_dir, patch_type)
         os.mkdir(patch_type_dir)
+
         for dataset_type in ['training', 'validation', 'test']:
             dataset_type_dir = os.path.join(patch_type_dir, dataset_type)
             os.mkdir(dataset_type_dir)
@@ -37,12 +44,22 @@ def ParseArguments():
     return args
 
 
-def TestEqualPatchGeneration(args):
-    for mode in ['training', 'validation', 'test']:
-        SaveEqualPatch(args.data_root_dir, args.dst_root_dir, mode)
+def TestPatchLevelDatasetNegativePatchRemoval(args):
+    for dataset_type in ['training', 'validation', 'test']:
+        print('-------------------------------------------------------------------------------------------------------')
+        print('Processing {} set'.format(dataset_type))
+        positive_image_count, negative_image_count, sampled_negative_image_count = remove_negative_patches(
+            args.src_data_root_dir, args.dst_data_root_dir, dataset_type, args.random_seed)
+
+        print('Finished processing {} set.'.format(dataset_type))
+        print('This dataset has {} positive patches.'.format(positive_image_count))
+        print('This dataset originally had {} negative patches.'.format(negative_image_count))
+        print('This dataset now has {} negative patches.'.format(sampled_negative_image_count))
+
+    return
 
 
 if __name__ == '__main__':
     args = ParseArguments()
 
-    TestEqualPatchGeneration(args)
+    TestPatchLevelDatasetNegativePatchRemoval(args)
