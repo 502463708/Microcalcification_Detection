@@ -2,6 +2,7 @@ import argparse
 import os
 import shutil
 
+from logger.logger import Logger
 from utils.image_level_dataset_crop_and_split import image_filename_list_split, crop_and_save_data
 
 
@@ -69,23 +70,27 @@ def TestImageLevelDatasetCropAndSplit(args):
     assert os.path.exists(image_data_root_dir), 'Source image data root dir does not exist.'
     assert os.path.exists(label_data_root_dir), 'Source label data root dir does not exist.'
 
+    # set up logger
+    logger = Logger(args.dst_data_root_dir)
+
     image_list_training, \
     image_list_val, \
     image_list_test = image_filename_list_split(image_data_root_dir,
                                                 training_ratio=args.training_ratio,
                                                 validation_ratio=args.validation_ratio,
                                                 test_ratio=args.test_ratio,
-                                                random_seed=args.random_seed)
+                                                random_seed=args.random_seed,
+                                                logger=logger)
 
     crop_and_save_data(filename_list=image_list_training, image_dir=image_data_root_dir, label_dir=label_data_root_dir,
                        save_path=args.dst_data_root_dir, dataset_type='training',
-                       intensity_threshold=args.intensity_threshold)
+                       intensity_threshold=args.intensity_threshold, logger=logger)
     crop_and_save_data(filename_list=image_list_val, image_dir=image_data_root_dir, label_dir=label_data_root_dir,
                        save_path=args.dst_data_root_dir, dataset_type='validation',
-                       intensity_threshold=args.intensity_threshold)
+                       intensity_threshold=args.intensity_threshold, logger=logger)
     crop_and_save_data(filename_list=image_list_test, image_dir=image_data_root_dir, label_dir=label_data_root_dir,
                        save_path=args.dst_data_root_dir, dataset_type='test',
-                       intensity_threshold=args.intensity_threshold)
+                       intensity_threshold=args.intensity_threshold, logger=logger)
 
     return
 

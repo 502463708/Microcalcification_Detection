@@ -2,6 +2,7 @@ import argparse
 import os
 import shutil
 
+from logger.logger import Logger
 from utils.patch_level_dataset_negative_patch_removal import remove_negative_patches
 
 
@@ -45,16 +46,19 @@ def ParseArguments():
 
 
 def TestPatchLevelDatasetNegativePatchRemoval(args):
-    for dataset_type in ['training', 'validation', 'test']:
-        print('-------------------------------------------------------------------------------------------------------')
-        print('Processing {} set'.format(dataset_type))
-        positive_image_count, negative_image_count, sampled_negative_image_count = remove_negative_patches(
-            args.src_data_root_dir, args.dst_data_root_dir, dataset_type, args.random_seed)
+    # set up logger
+    logger = Logger(args.dst_data_root_dir)
 
-        print('Finished processing {} set.'.format(dataset_type))
-        print('This dataset has {} positive patches.'.format(positive_image_count))
-        print('This dataset originally had {} negative patches.'.format(negative_image_count))
-        print('This dataset now has {} negative patches.'.format(sampled_negative_image_count))
+    for dataset_type in ['training', 'validation', 'test']:
+        logger.write_and_print('--------------------------------------------------------------------------------------')
+        logger.write_and_print('Processing {} set'.format(dataset_type))
+        positive_image_count, negative_image_count, sampled_negative_image_count = remove_negative_patches(
+            args.src_data_root_dir, args.dst_data_root_dir, dataset_type, args.random_seed, logger)
+
+        logger.write_and_print('Finished processing {} set.'.format(dataset_type))
+        logger.write_and_print('This dataset has {} positive patches.'.format(positive_image_count))
+        logger.write_and_print('This dataset originally had {} negative patches.'.format(negative_image_count))
+        logger.write_and_print('This dataset now has {} negative patches.'.format(sampled_negative_image_count))
 
     return
 

@@ -66,7 +66,7 @@ def generate_null_label(absolute_src_image_path, absolute_dst_label_path):
 
 
 def generate_label_according_to_xml(absolute_src_image_path, absolute_src_xml_path, absolute_dst_label_path,
-                                    diameter_threshold=14):
+                                    logger=None, diameter_threshold=14):
     image_np = cv2.imread(absolute_src_image_path, cv2.IMREAD_GRAYSCALE)
     xml_obj = ImageLevelAnnotationCollection(absolute_src_xml_path)
 
@@ -140,16 +140,24 @@ def generate_label_according_to_xml(absolute_src_image_path, absolute_src_xml_pa
     label_np[other_lesion_mask_np == 255] = 125
 
     cv2.imwrite(absolute_dst_label_path, label_np)
-    print('This image contains {} qualified calcifications.'.format(qualified_calcification_count_image_level))
-    print('This image contains {} outlier calcifications.'.format(outlier_calcification_count_image_level))
-    print('This image contains {} other lesions.'.format(other_lesion_count_image_level))
+
+    if logger is None:
+        print('This image contains {} qualified calcifications.'.format(qualified_calcification_count_image_level))
+        print('This image contains {} outlier calcifications.'.format(outlier_calcification_count_image_level))
+        print('This image contains {} other lesions.'.format(other_lesion_count_image_level))
+    else:
+        logger.write_and_print(
+            'This image contains {} qualified calcifications.'.format(qualified_calcification_count_image_level))
+        logger.write_and_print(
+            'This image contains {} outlier calcifications.'.format(outlier_calcification_count_image_level))
+        logger.write_and_print('This image contains {} other lesions.'.format(other_lesion_count_image_level))
 
     return qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
            other_lesion_count_image_level
 
 
 def image_with_xml2image_with_mask(absolute_src_image_path, absolute_src_xml_path, absolute_dst_image_path,
-                                   absolute_dst_label_path, diameter_threshold):
+                                   absolute_dst_label_path, diameter_threshold, logger=None):
     # the source image must exist
     assert os.path.exists(absolute_src_image_path)
 
@@ -163,21 +171,31 @@ def image_with_xml2image_with_mask(absolute_src_image_path, absolute_src_xml_pat
 
     # if this image does not have its corresponding xml file -> generate a mask which is completely filled with 0
     if not os.path.exists(absolute_src_xml_path):
-        print('This image does not have xml annotation.')
+        if logger is None:
+            print('This image does not have xml annotation.')
+        else:
+            logger.write_and_print('This image does not have xml annotation.')
+
         generate_null_label(absolute_src_image_path, absolute_dst_label_path)
     # if this image has its corresponding xml file -> generate a mask according to its xml file
     else:
-        print('This image has xml annotation.')
+        if logger is None:
+            print('This image has xml annotation.')
+        else:
+            logger.write_and_print('This image has xml annotation.')
+
         if diameter_threshold == -1:
             qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
             other_lesion_count_image_level = generate_label_according_to_xml(absolute_src_image_path,
                                                                              absolute_src_xml_path,
-                                                                             absolute_dst_label_path)
+                                                                             absolute_dst_label_path,
+                                                                             logger)
         else:
             qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
             other_lesion_count_image_level = generate_label_according_to_xml(absolute_src_image_path,
                                                                              absolute_src_xml_path,
                                                                              absolute_dst_label_path,
+                                                                             logger,
                                                                              diameter_threshold)
 
     return qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
