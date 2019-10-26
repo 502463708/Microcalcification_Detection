@@ -1,12 +1,9 @@
 """
 This file implements a class which can evaluate the accuracy
 """
-import torch
+import cv2
 import numpy as np
-from PIL import Image, ImageFont, ImageDraw
-from config.config_micro_calcification_patch_level_quantity_regression import cfg
-
-font_dir = cfg.general.font_dir
+import torch
 
 
 class MetricsImageLEvelQuantityRegression(object):
@@ -78,27 +75,17 @@ class MetricsImageLEvelQuantityRegression(object):
 
     def metric_patch_level(self, pred, label):
         # pred and label is a number
+        assert len(pred.shape) == 1
+        assert len(label.shape) == 1
 
         # transform into 112*112 images
-        image = np.zeros((112, 112), dtype=np.uint8)
-        image = Image.fromarray(image)
-
-        draw = ImageDraw.Draw(image)
-
-        font = ImageFont.truetype(font_dir, 30)
-
-        draw.text((40, 20), str(pred), (255), font=font)
-
-        pred_img = np.array(image)
+        pred_image = np.zeros((112, 112), dtype=np.uint8)
+        cv2.putText(pred_image, str(pred), (20, 65), cv2.FONT_HERSHEY_COMPLEX, 1, 255, 1)
+        # image , input text ,left down coord, font ,font size ,color , thickness
 
         # again for label
         label_image = np.zeros((112, 112), dtype=np.uint8)
-        label_image = Image.fromarray(label_image)
+        cv2.putText(label_image, str(pred), (20, 65), cv2.FONT_HERSHEY_COMPLEX, 1, 255, 1)
+        # image , input text ,left down coord, font ,font size ,color , thickness
 
-        draw = ImageDraw.Draw(label_image)
-        font = ImageFont.truetype(font_dir, 30)
-
-        draw.text((40, 20), str(label), (255), font=font)
-        label_img = np.array(label_image)
-
-        return pred_img, label_img
+        return pred_image, label_image
