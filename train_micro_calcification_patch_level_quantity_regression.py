@@ -8,9 +8,9 @@ import visdom
 import torch.nn as nn
 from common.utils import BatchImageToNumber
 from common.utils import save_best_ckpt
-from config.config_micro_calcification_image_level_quantity_regression import cfg
+from config.config_micro_calcification_patch_level_quantity_regression import cfg
 from dataset.dataset_micro_calcification import MicroCalcificationDataset
-from metrics.metrics_image_level_quantity_regression import MetricsImageLEvelQuantityRegression
+from metrics.metrics_patch_level_quantity_regression import MetricsImageLEvelQuantityRegression
 from logger.logger import Logger
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader
@@ -174,9 +174,9 @@ if __name__ == '__main__':
         os.makedirs(ckpt_dir)
 
         # copy related config and net .py file to the saving dir
-        shutil.copyfile('./config/config_micro_calcification_image_level_quantity_regression.py',
+        shutil.copyfile('./config/config_micro_calcification_patch_level_quantity_regression.py',
                         os.path.join(cfg.general.saving_dir,
-                                     'config_micro_calcification_image_level_quantity_regression.py'))
+                                     'config_micro_calcification_patch_level_quantity_regression.py'))
         shutil.copyfile('./net/{0}.py'.format(cfg.net.name),
                         os.path.join(cfg.general.saving_dir, '{0}.py'.format(cfg.net.name)))
 

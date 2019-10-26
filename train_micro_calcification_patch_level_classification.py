@@ -7,9 +7,9 @@ import torch.backends.cudnn as cudnn
 import visdom
 
 from common.utils import save_best_ckpt
-from config.config_micro_calcification_image_level_classification import cfg
+from config.config_micro_calcification_patch_level_classification import cfg
 from dataset.dataset_micro_calcification import MicroCalcificationDataset
-from metrics.metrics_image_level_classification import MetricsImageLevelClassification
+from metrics.metrics_patch_level_classification import MetricsImageLevelClassification
 from logger.logger import Logger
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader
@@ -196,9 +196,9 @@ if __name__ == '__main__':
         os.makedirs(ckpt_dir)
 
         # copy related config and net .py file to the saving dir
-        shutil.copyfile('./config/config_micro_calcification_image_level_classification.py',
+        shutil.copyfile('./config/config_micro_calcification_patch_level_classification.py',
                         os.path.join(cfg.general.saving_dir,
-                                     'config_micro_calcification_image_level_classification.py'))
+                                     'config_micro_calcification_patch_level_classification.py'))
         shutil.copyfile('./net/{0}.py'.format(cfg.net.name),
                         os.path.join(cfg.general.saving_dir, '{0}.py'.format(cfg.net.name)))
 
