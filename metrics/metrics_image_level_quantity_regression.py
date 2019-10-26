@@ -4,10 +4,10 @@ This file implements a class which can evaluate the accuracy
 import torch
 import numpy as np
 from PIL import Image, ImageFont, ImageDraw
-from common.utils import post_process_residue
-from skimage import measure
+from config.config_micro_calcification_image_level_quantity_regression import cfg
 
-font_dir="/home/groupprofzli/user/dwz/arial.ttf"
+
+font_dir=cfg.general.font_dir
 
 
 class MetricsImageLEvelQuantityRegression(object):
@@ -86,7 +86,7 @@ class MetricsImageLEvelQuantityRegression(object):
 
         draw = ImageDraw.Draw(image)
 
-        font = ImageFont.truetype(font_dir, 40)
+        font = ImageFont.truetype(font_dir, 30)
 
         draw.text((40, 20), str(pred), (255), font=font)
 
@@ -97,7 +97,7 @@ class MetricsImageLEvelQuantityRegression(object):
         label_image = Image.fromarray(label_image)
 
         draw = ImageDraw.Draw(label_image)
-        font = ImageFont.truetype(font_dir, 40)
+        font = ImageFont.truetype(font_dir, 30)
 
         draw.text((40, 20), str(label), (255), font=font)
         label_img = np.array(label_image)
