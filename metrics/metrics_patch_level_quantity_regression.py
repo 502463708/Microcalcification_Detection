@@ -69,14 +69,16 @@ class MetricsImageLEvelQuantityRegression(object):
         visual_labels_np = np.array(visual_labels_list)
         distance_batch_level = np.abs(np.subtract(preds, labels))
         assert preds.shape == labels.shape
-        correct_pred = np.sum(np.round(preds) == labels)
+        correct_pred = np.sum(np.round(preds) == np.round(labels))
 
         return visual_preds_np, visual_labels_np, distance_batch_level, correct_pred
 
     def metric_patch_level(self, pred, label):
-        # pred and label is a number
-        assert len(pred.shape) == 1
-        assert len(label.shape) == 1
+        # print(pred)
+        # print(type(pred))
+        # # pred and label is a number
+        # assert len(pred.shape) == 1
+        # assert len(label.shape) == 1
 
         # transform into 112*112 images
         pred_image = np.zeros((112, 112), dtype=np.uint8)
@@ -85,7 +87,7 @@ class MetricsImageLEvelQuantityRegression(object):
 
         # again for label
         label_image = np.zeros((112, 112), dtype=np.uint8)
-        cv2.putText(label_image, str(pred), (20, 65), cv2.FONT_HERSHEY_COMPLEX, 1, 255, 1)
+        cv2.putText(label_image, str(label), (20, 65), cv2.FONT_HERSHEY_COMPLEX, 1, 255, 1)
         # image , input text ,left down coord, font ,font size ,color , thickness
 
         return pred_image, label_image

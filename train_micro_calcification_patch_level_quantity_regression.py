@@ -135,7 +135,8 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
                 print('Error message: ', err)
 
     # calculate loss of this epoch
-    average_loss_of_this_epoch = statistics.mean(Distance_epoch_list)
+    Distance_epoch_list=np.array(Distance_epoch_list)
+    average_loss_of_this_epoch = np.mean(Distance_epoch_list)
 
     # calculate accuracy of this epoch
     accuracy_of_this_epoch = correct_epoch_level / pred_num_epoch_level
