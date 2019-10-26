@@ -2,6 +2,7 @@ import argparse
 import os
 import shutil
 
+from logger.logger import Logger
 from utils.convert_xml_annotations_2_mask import image_with_xml2image_with_mask
 
 
@@ -42,12 +43,15 @@ def TestConvertXml2Mask(args):
     src_image_dir = os.path.join(args.src_data_root_dir, 'images')
     src_xml_dir = os.path.join(args.src_data_root_dir, 'xml_annotations')
 
-    dst_image_dir = os.path.join(args.dst_data_root_dir, 'images')
-    dst_label_dir = os.path.join(args.dst_data_root_dir, 'labels')
-
     # the source data root dir must contain images and labels
     assert os.path.exists(src_image_dir)
     assert os.path.exists(src_xml_dir)
+
+    # set up logger
+    logger = Logger(args.dst_data_root_dir)
+
+    dst_image_dir = os.path.join(args.dst_data_root_dir, 'images')
+    dst_label_dir = os.path.join(args.dst_data_root_dir, 'labels')
 
     image_filename_list = os.listdir(src_image_dir)
 
@@ -59,8 +63,9 @@ def TestConvertXml2Mask(args):
     current_idx = 0
     for image_filename in image_filename_list:
         current_idx += 1
-        print('-------------------------------------------------------------------------------------------------------')
-        print('Processing {} out of {}, filename: {}'.format(current_idx, len(image_filename_list), image_filename))
+        logger.write_and_print('--------------------------------------------------------------------------------------')
+        logger.write_and_print(
+            'Processing {} out of {}, filename: {}'.format(current_idx, len(image_filename_list), image_filename))
 
         xml_filename = image_filename.replace('png', 'xml')
 
@@ -73,16 +78,19 @@ def TestConvertXml2Mask(args):
         other_lesion_count_image_level = image_with_xml2image_with_mask(absolute_src_image_path, absolute_src_xml_path,
                                                                         absolute_dst_image_path,
                                                                         absolute_dst_label_path,
-                                                                        args.diameter_threshold)
+                                                                        args.diameter_threshold,
+                                                                        logger=logger)
 
         qualified_calcification_count_dataset_level += qualified_calcification_count_image_level
         outlier_calcification_count_dataset_level += outlier_calcification_count_image_level
         other_lesion_count_dataset_level += other_lesion_count_image_level
 
-    print('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
-    print('This dataset contains {} qualified calcifications.'.format(qualified_calcification_count_dataset_level))
-    print('This dataset contains {} outlier calcifications.'.format(outlier_calcification_count_dataset_level))
-    print('This dataset contains {} other lesions.'.format(other_lesion_count_dataset_level))
+    logger.write_and_print('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
+    logger.write_and_print(
+        'This dataset contains {} qualified calcifications.'.format(qualified_calcification_count_dataset_level))
+    logger.write_and_print(
+        'This dataset contains {} outlier calcifications.'.format(outlier_calcification_count_dataset_level))
+    logger.write_and_print('This dataset contains {} other lesions.'.format(other_lesion_count_dataset_level))
 
     return
 

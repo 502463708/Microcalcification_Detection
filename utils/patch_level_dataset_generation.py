@@ -1,20 +1,6 @@
 import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 import os
-
-
-def show_images(images: list) -> None:
-    n: int = len(images)
-    f = plt.figure()
-    for i in range(n):
-        # Debug, plot figure
-        f.add_subplot(1, n, i + 1)
-        plt.imshow(images[i])
-
-    plt.show(block=True)
-
-    return
 
 
 def crop_patches_and_labels(image_path, label_path, patch_size, stride):
@@ -73,7 +59,7 @@ def crop_patches_and_labels(image_path, label_path, patch_size, stride):
 
 
 def filter_and_save_patches_and_labels(save_dir, dataset_type, image_patch_list, label_patch_list, image_name,
-                                       pixel_threshold=1, area_threshold=0.5):
+                                       pixel_threshold=1, area_threshold=0.5, logger=None):
     pos_patch_count = 0
     neg_patch_count = 0
     other_lesion_patch_count = 0
@@ -132,12 +118,22 @@ def filter_and_save_patches_and_labels(save_dir, dataset_type, image_patch_list,
             cv2.imwrite(absolute_image_dst_path, image_patch)
             cv2.imwrite(absolute_label_dst_path, label_patch)
 
-    print(
-        'This image contains {} positive patches, {} negative patches, {} other_lesion_pathces, {} background_patches.'.format(
-            pos_patch_count, neg_patch_count, other_lesion_patch_count, background_patch_count))
-    print('Totally {} patches have been cropped.'.format(
-        other_lesion_patch_count + background_patch_count + pos_patch_count + neg_patch_count))
-    print('Totally {} patches have been discarded.'.format(other_lesion_patch_count + background_patch_count))
-    print('Totally {} patches have been saved.'.format(pos_patch_count + neg_patch_count))
+    if logger is None:
+        print(
+            'This image contains {} positive patches, {} negative patches, {} other_lesion_pathces, {} background_patches.'.format(
+                pos_patch_count, neg_patch_count, other_lesion_patch_count, background_patch_count))
+        print('Totally {} patches have been cropped.'.format(
+            other_lesion_patch_count + background_patch_count + pos_patch_count + neg_patch_count))
+        print('Totally {} patches have been discarded.'.format(other_lesion_patch_count + background_patch_count))
+        print('Totally {} patches have been saved.'.format(pos_patch_count + neg_patch_count))
+    else:
+        logger.write_and_print(
+            'This image contains {} positive patches, {} negative patches, {} other_lesion_pathces, {} background_patches.'.format(
+                pos_patch_count, neg_patch_count, other_lesion_patch_count, background_patch_count))
+        logger.write_and_print('Totally {} patches have been cropped.'.format(
+            other_lesion_patch_count + background_patch_count + pos_patch_count + neg_patch_count))
+        logger.write_and_print(
+            'Totally {} patches have been discarded.'.format(other_lesion_patch_count + background_patch_count))
+        logger.write_and_print('Totally {} patches have been saved.'.format(pos_patch_count + neg_patch_count))
 
     return pos_patch_count, neg_patch_count, other_lesion_patch_count, background_patch_count

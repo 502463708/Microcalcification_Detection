@@ -2,6 +2,7 @@ import argparse
 import os
 import shutil
 
+from logger.logger import Logger
 from utils.patch_level_dataset_generation import crop_patches_and_labels, filter_and_save_patches_and_labels
 
 
@@ -66,6 +67,9 @@ def ParseArguments():
 
 
 def TestPatchLevelDatasetGeneration(args):
+    # set up logger
+    logger = Logger(args.dst_data_root_dir)
+
     for dataset_type in ['training', 'validation', 'test']:
         absolute_image_dir = os.path.join(args.src_data_root_dir, dataset_type, 'images')
         filename_list = os.listdir(absolute_image_dir)
@@ -86,8 +90,8 @@ def TestPatchLevelDatasetGeneration(args):
 
         for filename in filename_list:
             current_idx += 1
-            print('---------------------------------------------------------------------------------------------------')
-            print(
+            logger.write_and_print('----------------------------------------------------------------------------------')
+            logger.write_and_print(
                 'Processing {} out of {}: {} in {} set'.format(current_idx, len(filename_list), filename, dataset_type))
 
             absolute_image_path = os.path.join(absolute_image_dir, filename)
@@ -103,31 +107,32 @@ def TestPatchLevelDatasetGeneration(args):
                                                                                     dataset_type, patch_list,
                                                                                     label_list, filename,
                                                                                     pixel_threshold=args.pixel_threshold,
-                                                                                    area_threshold=area_threshold)
+                                                                                    area_threshold=area_threshold,
+                                                                                    logger=logger)
 
             pos_patch_count_dataset_level += pos_patch_count_image_level
             neg_patch_count_dataset_level += neg_patch_count_image_level
             other_lesion_patch_count_dataset_level += other_lesion_patch_count_image_level
             background_patch_count_dataset_level += background_patch_count_image_level
 
-        print('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
-        print('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
-        print('The {} set contains {} positive patches, {} negative patches, {} other_lesion_pathces, '
-              '{} background_patches.'.format(dataset_type,
-                                              pos_patch_count_dataset_level,
-                                              neg_patch_count_dataset_level,
-                                              other_lesion_patch_count_dataset_level,
-                                              background_patch_count_dataset_level))
-        print('Totally {} patches have been cropped.'.format(other_lesion_patch_count_dataset_level +
-                                                             background_patch_count_dataset_level +
-                                                             pos_patch_count_dataset_level +
-                                                             neg_patch_count_dataset_level))
-        print('Totally {} patches have been discarded.'.format(other_lesion_patch_count_dataset_level +
+        logger.write_and_print('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
+        logger.write_and_print('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
+        logger.write_and_print('The {} set contains {} positive patches, {} negative patches, {} other_lesion_pathces, '
+                               '{} background_patches.'.format(dataset_type,
+                                                               pos_patch_count_dataset_level,
+                                                               neg_patch_count_dataset_level,
+                                                               other_lesion_patch_count_dataset_level,
                                                                background_patch_count_dataset_level))
-        print('Totally {} patches have been saved.'.format(pos_patch_count_dataset_level +
-                                                           neg_patch_count_dataset_level))
-        print('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
-        print('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
+        logger.write_and_print('Totally {} patches have been cropped.'.format(other_lesion_patch_count_dataset_level +
+                                                                              background_patch_count_dataset_level +
+                                                                              pos_patch_count_dataset_level +
+                                                                              neg_patch_count_dataset_level))
+        logger.write_and_print('Totally {} patches have been discarded.'.format(other_lesion_patch_count_dataset_level +
+                                                                                background_patch_count_dataset_level))
+        logger.write_and_print('Totally {} patches have been saved.'.format(pos_patch_count_dataset_level +
+                                                                            neg_patch_count_dataset_level))
+        logger.write_and_print('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
+        logger.write_and_print('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
 
     return
 
