@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import os
 import shutil
-from config.config_micro_calcification_reconstruction import cfg
+from config.config_micro_calcification_patch_levelreconstruction import cfg
 from dataset.dataset_micro_calcification import MicroCalcificationDataset
 from torch.utils.data import DataLoader
 

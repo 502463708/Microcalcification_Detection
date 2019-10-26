@@ -7,7 +7,7 @@ import torch.backends.cudnn as cudnn
 import visdom
 
 from common.utils import save_best_ckpt
-from config.config_micro_calcification_reconstruction import cfg
+from config.config_micro_calcification_patch_levelreconstruction import cfg
 from dataset.dataset_micro_calcification import MicroCalcificationDataset
 from metrics.metrics_reconstruction import MetricsReconstruction
 from logger.logger import Logger
@@ -201,8 +201,8 @@ if __name__ == '__main__':
         os.makedirs(ckpt_dir)
 
         # copy related config and net .py file to the saving dir
-        shutil.copyfile('./config/config_micro_calcification_reconstruction.py',
-                        os.path.join(cfg.general.saving_dir, 'config_micro_calcification_reconstruction.py'))
+        shutil.copyfile('./config/config_micro_calcification_patch_levelreconstruction.py',
+                        os.path.join(cfg.general.saving_dir, 'config_micro_calcification_patch_levelreconstruction.py'))
         shutil.copyfile('./net/{0}.py'.format(cfg.net.name),
                         os.path.join(cfg.general.saving_dir, '{0}.py'.format(cfg.net.name)))
 

@@ -7,15 +7,18 @@ import SimpleITK as sitk
 import torch
 import torch.backends.cudnn as cudnn
 
-from config.config_micro_calcification_reconstruction import cfg
+from common.utils import get_ckpt_path
+from config.config_micro_calcification_image_level_classification import cfg as c_cfg
+from config.config_micro_calcification_patch_levelreconstruction import cfg as r_cfg
 from dataset.dataset_micro_calcification import MicroCalcificationDataset
 from logger.logger import Logger
 from metrics.metrics_reconstruction import MetricsReconstruction
+from net.resnet18 import ResNet18
 from net.vnet2d_v2 import VNet2d
 from torch.utils.data import DataLoader
 from time import time
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '6'
+os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 cudnn.benchmark = True
 
 
@@ -24,19 +27,31 @@ def ParseArguments():
     parser.add_argument('--data_root_dir',
                         type=str,
                         default='/data/lars/data/Inbreast-dataset-cropped-pathches/',
-                        help='Source data dir.')
-    parser.add_argument('--model_saving_dir',
-                        type=str,
-                        default='/data/lars/models/20190925_uCs_reconstruction_ttestlossv3_default_dilation_radius_7',
-                        help='Model saved dir.')
-    parser.add_argument('--epoch_idx',
-                        type=int,
-                        default=-1,
-                        help='The epoch index of ckpt, set -1 to choose the best ckpt on validation set.')
+                        help='The source data dir.')
     parser.add_argument('--dataset_type',
                         type=str,
                         default='test',
                         help='The type of dataset to be evaluated (training, validation, test).')
+    parser.add_argument('--prediction_saving_dir',
+                        type=str,
+                        default='/data/lars/results/Micro_calcification_detection/',
+                        help='The predicted results saving dir.')
+    parser.add_argument('--reconstruction_model_saving_dir',
+                        type=str,
+                        default='/data/lars/models/20190925_uCs_reconstruction_ttestlossv3_default_dilation_radius_7',
+                        help='The reconstruction model saved dir.')
+    parser.add_argument('--reconstruction_epoch_idx',
+                        type=int,
+                        default=-1,
+                        help='The epoch index of ckpt, set -1 to choose the best ckpt on validation set.')
+    parser.add_argument('--classification_model_saving_dir',
+                        type=str,
+                        default='/data/lars/models/20190926_uCs_image_level_classification_CE_default/',
+                        help='The classification model saved dir.')
+    parser.add_argument('--classification_epoch_idx',
+                        type=int,
+                        default=-1,
+                        help='The epoch index of ckpt, set -1 to choose the best ckpt on validation set.')
     parser.add_argument('--dilation_radius',
                         type=int,
                         default=7,
@@ -47,7 +62,7 @@ def ParseArguments():
                         help='residue[residue <= prob_threshold] = 0; residue[residue > prob_threshold] = 1')
     parser.add_argument('--area_threshold',
                         type=float,
-                        default=3.14 * 7 * 7 / 3,
+                        default=3.14 * 12 * 12 / 3,
                         help='Connected components whose area < area_threshold will be discarded.')
     parser.add_argument('--distance_threshold',
                         type=int,
@@ -61,6 +76,43 @@ def ParseArguments():
     args = parser.parse_args()
 
     return args
+
+
+def micro_calcification_detection_batch_level(residues_tensor, classification_preds_tensor, detection_threshold=-1.0):
+    assert len(residues_tensor.shape) == 4
+    assert len(classification_preds_tensor.shape) == 2
+    assert residues_tensor.shape[0] == classification_preds_tensor.shape[0]
+
+    batch_size = residues_tensor.shape[0]
+
+    # transfer the tensor into cpu device
+    if residues_tensor.device.type != 'cpu':
+        residues_tensor = residues_tensor.cpu().detach()
+    # transform the tensor into ndarray format
+    residues_np = residues_tensor.numpy()
+
+    # transfer the tensor into cpu device
+    if classification_preds_tensor.device.type != 'cpu':
+        classification_preds_tensor = classification_preds_tensor.cpu().detach()
+    # transform the tensor into ndarray format
+    classification_preds_np = classification_preds_tensor.numpy()
+
+    detection_results_np_list = list()
+
+    for patch_idx in range(batch_size):
+        residue_np = residues_np[patch_idx, :, :, :]
+        classification_pred_np = classification_preds_np[patch_idx, :]
+        if classification_pred_np.max() == classification_pred_np[0]:
+            detection_result_np = np.zeros_like(residue_np)
+        else:
+            detection_result_np = residue_np
+        detection_results_np_list.append(detection_result_np)
+
+    detection_results_np = np.array(detection_results_np_list)
+
+    assert residues_np.shape == detection_results_np.shape
+
+    return detection_results_np
 
 
 def save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor, prediction_residues_tensor,
@@ -123,58 +175,63 @@ def save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor
     return
 
 
-def TestMicroCalcificationReconstruction(args):
-    prediction_saving_dir = os.path.join(args.model_saving_dir,
-                                         'reconstruction_results_dataset_{}_epoch_{}'.format(args.dataset_type,
-                                                                                             args.epoch_idx))
-    visualization_saving_dir = os.path.join(prediction_saving_dir, 'qualitative_results')
+def TestMicroCalcificationDetectionPatchLevel(args):
+    visualization_saving_dir = os.path.join(args.prediction_saving_dir, 'qualitative_results')
 
     # remove existing dir which has the same name and create clean dir
-    if os.path.exists(prediction_saving_dir):
-        shutil.rmtree(prediction_saving_dir)
-    os.mkdir(prediction_saving_dir)
+    if os.path.exists(args.prediction_saving_dir):
+        shutil.rmtree(args.prediction_saving_dir)
+    os.mkdir(args.prediction_saving_dir)
     os.mkdir(visualization_saving_dir)
 
     # initialize logger
-    logger = Logger(prediction_saving_dir, 'quantitative_results.txt')
+    logger = Logger(args.prediction_saving_dir, 'quantitative_results.txt')
     logger.write_and_print('Dataset: {}'.format(args.data_root_dir))
     logger.write_and_print('Dataset type: {}'.format(args.dataset_type))
+    logger.write_and_print('Reconstruction model saving dir: {}'.format(args.reconstruction_model_saving_dir))
+    logger.write_and_print('Reconstruction ckpt index: {}'.format(args.reconstruction_epoch_idx))
+    logger.write_and_print('Classification model saving dir: {}'.format(args.classification_model_saving_dir))
+    logger.write_and_print('Classification ckpt index: {}'.format(args.classification_epoch_idx))
 
-    # define the network
-    net = VNet2d(num_in_channels=cfg.net.in_channels, num_out_channels=cfg.net.out_channels)
+    # define the reconstruction network
+    reconstruction_net = VNet2d(num_in_channels=r_cfg.net.in_channels, num_out_channels=r_cfg.net.out_channels)
+    #
+    # get the reconstruction absolute ckpt path
+    reconstruction_ckpt_path = get_ckpt_path(args.reconstruction_model_saving_dir, args.reconstruction_epoch_idx)
+    #
+    # load ckpt and transfer net into gpu devices
+    reconstruction_net = torch.nn.DataParallel(reconstruction_net).cuda()
+    reconstruction_net.load_state_dict(torch.load(reconstruction_ckpt_path))
+    reconstruction_net = reconstruction_net.eval()
+    #
+    logger.write_and_print('Load ckpt: {0}...'.format(reconstruction_ckpt_path))
 
-    # load the specified ckpt
-    ckpt_dir = os.path.join(args.model_saving_dir, 'ckpt')
-    # epoch_idx is specified -> load the specified ckpt
-    if args.epoch_idx >= 0:
-        ckpt_path = os.path.join(ckpt_dir, 'net_epoch_{}.pth'.format(args.epoch_idx))
-    # epoch_idx is not specified -> load the best ckpt
-    else:
-        saved_ckpt_list = os.listdir(ckpt_dir)
-        best_ckpt_filename = [best_ckpt_filename for best_ckpt_filename in saved_ckpt_list if
-                              'net_best_on_validation_set' in best_ckpt_filename][0]
-        ckpt_path = os.path.join(ckpt_dir, best_ckpt_filename)
-
-    # transfer net into gpu devices
-    net = torch.nn.DataParallel(net).cuda()
-    net.load_state_dict(torch.load(ckpt_path))
-    net = net.eval()
-
-    logger.write_and_print('Load ckpt: {0}...'.format(ckpt_path))
+    # define the classification network
+    classification_net = ResNet18(in_channels=c_cfg.net.in_channels, num_classes=c_cfg.net.num_classes)
+    #
+    # get the classification absolute ckpt path
+    classification_ckpt_path = get_ckpt_path(args.classification_model_saving_dir, args.classification_epoch_idx)
+    #
+    # load ckpt and transfer net into gpu devices
+    classification_net = torch.nn.DataParallel(classification_net).cuda()
+    classification_net.load_state_dict(torch.load(classification_ckpt_path))
+    classification_net = classification_net.eval()
+    #
+    logger.write_and_print('Load ckpt: {0}...'.format(classification_ckpt_path))
 
     # create dataset and data loader
     dataset = MicroCalcificationDataset(data_root_dir=args.data_root_dir,
                                         mode=args.dataset_type,
                                         enable_random_sampling=False,
-                                        pos_to_neg_ratio=cfg.dataset.pos_to_neg_ratio,
-                                        image_channels=cfg.dataset.image_channels,
-                                        cropping_size=cfg.dataset.cropping_size,
+                                        pos_to_neg_ratio=r_cfg.dataset.pos_to_neg_ratio,
+                                        image_channels=r_cfg.dataset.image_channels,
+                                        cropping_size=r_cfg.dataset.cropping_size,
                                         dilation_radius=args.dilation_radius,
-                                        calculate_micro_calcification_number=cfg.dataset.calculate_micro_calcification_number,
+                                        calculate_micro_calcification_number=r_cfg.dataset.calculate_micro_calcification_number,
                                         enable_data_augmentation=False)
     #
     data_loader = DataLoader(dataset, batch_size=args.batch_size,
-                             shuffle=False, num_workers=cfg.train.num_threads)
+                             shuffle=False, num_workers=r_cfg.train.num_threads)
 
     metrics = MetricsReconstruction(args.prob_threshold, args.area_threshold, args.distance_threshold)
 
@@ -190,12 +247,19 @@ def TestMicroCalcificationReconstruction(args):
         # transfer the tensor into gpu device
         images_tensor = images_tensor.cuda()
 
-        # network forward
-        reconstructed_images_tensor, prediction_residues_tensor = net(images_tensor)
+        # reconstruction network forward
+        reconstructed_images_tensor, prediction_residues_tensor = reconstruction_net(images_tensor)
+
+        # classification network forward
+        classification_preds_tensor = classification_net(images_tensor)
+
+        # merge the reconstruction and the classification results
+        detection_results_np = micro_calcification_detection_batch_level(prediction_residues_tensor,
+                                                                         classification_preds_tensor)
 
         # evaluation
         post_process_preds_np, calcification_num_batch_level, recall_num_batch_level, FP_num_batch_level = \
-            metrics.metric_batch_level(prediction_residues_tensor, pixel_level_labels_tensor)
+            metrics.metric_batch_level(detection_results_np, pixel_level_labels_tensor)
 
         calcification_num += calcification_num_batch_level
         recall_num += recall_num_batch_level
@@ -227,4 +291,4 @@ def TestMicroCalcificationReconstruction(args):
 if __name__ == '__main__':
     args = ParseArguments()
 
-    TestMicroCalcificationReconstruction(args)
+    TestMicroCalcificationDetectionPatchLevel(args)
