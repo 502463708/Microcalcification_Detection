@@ -4,10 +4,9 @@ This file implements a class which can evaluate the accuracy
 import torch
 import numpy as np
 from PIL import Image, ImageFont, ImageDraw
-from config.config_micro_calcification_image_level_quantity_regression import cfg
+from config.config_micro_calcification_patch_level_quantity_regression import cfg
 
-
-font_dir=cfg.general.font_dir
+font_dir = cfg.general.font_dir
 
 
 class MetricsImageLEvelQuantityRegression(object):
