@@ -39,13 +39,17 @@ def ParseArguments():
                         type=int,
                         default=48,
                         help='Batch size for evaluation.')
+    parser.add_argument('--enable_CAM',
+                        type=bool,
+                        default=True,
+                        help='Whether CAM results can be saved.')
 
     args = parser.parse_args()
 
     return args
 
 
-def TestMicroCalcificationImageLevelClassification(args, CAM=False):
+def TestMicroCalcificationImageLevelClassification(args):
     start_time_for_epoch = time()
 
     prediction_saving_dir = os.path.join(args.model_saving_dir,
@@ -172,7 +176,7 @@ def TestMicroCalcificationImageLevelClassification(args, CAM=False):
             cv2.imwrite(os.path.join(saving_dir_of_this_patch, filename.replace('.png', '_pixel_level_label.png')),
                         pixel_level_label_np)
 
-            if CAM:
+            if args.enable_CAM:
                 result = generateCAM(net, image_np, "layer3")
                 cv2.imwrite(os.path.join(saving_dir_of_this_patch, filename.replace('.png', '_cam.png')),
                             result)
