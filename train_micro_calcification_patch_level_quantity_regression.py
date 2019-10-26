@@ -2,10 +2,12 @@ import importlib
 import numpy as np
 import os
 import shutil
+import statistics
 import torch
 import torch.backends.cudnn as cudnn
 import visdom
 import torch.nn as nn
+
 from common.utils import BatchImageToNumber
 from common.utils import save_best_ckpt
 from config.config_micro_calcification_patch_level_quantity_regression import cfg
@@ -57,10 +59,12 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
     # image_tensor, pixel_level_label_tensor, pixel_level_label_dilated_tensor, image_level_label_tensor, \
     #          micro_calcification_number_label_tensor, filename
     for batch_idx, (
-    images_tensor, pixel_level_labels_tensor, _, _, micro_calcification_number_label_tensor, _) in enumerate(
-            data_loader):
+            images_tensor, pixel_level_labels_tensor, _, _, micro_calcification_number_label_tensor, _) in enumerate(
+        data_loader):
 
         # start time of this batch
+        correct_epoch_level = 0
+        Distance_epoch_list = []
         start_time_for_batch = time()
 
         # transfer the image label tensor into 1 dimension tensor
@@ -68,14 +72,12 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
 
         # transfer the tensor into gpu device
         images_tensor = images_tensor.cuda()
-        pixel_level_labels_tensor=pixel_level_labels_tensor.cuda()
-        micro_calcification_number_label_tensor=micro_calcification_number_label_tensor.type(torch.FloatTensor)
+        pixel_level_labels_tensor = pixel_level_labels_tensor.cuda()
+        micro_calcification_number_label_tensor = micro_calcification_number_label_tensor.type(torch.FloatTensor)
         micro_calcification_number_label_tensor = micro_calcification_number_label_tensor.cuda()
-
 
         # network forward
         preds_tensor = net(images_tensor)  # the shape of preds_tensor: [B*1]
-
 
         # calculate loss of this batch
         loss = loss_func(preds_tensor, micro_calcification_number_label_tensor)
@@ -92,6 +94,8 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
         visual_preds_np, visual_label_np, Distance_batch_level, correct_pred = \
             metrics.metric_batch_level(preds_tensor, micro_calcification_number_label_tensor)
         pred_num_epoch_level += preds_tensor.shape[0]
+        correct_epoch_level += correct_pred
+        Distance_epoch_list.append(Distance_batch_level)
 
         # print logging information
         if logger is not None:
@@ -131,10 +135,10 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
                 print('Error message: ', err)
 
     # calculate loss of this epoch
-    average_loss_of_this_epoch = Distance_batch_level.mean()
+    average_loss_of_this_epoch = statistics.mean(Distance_epoch_list)
 
     # calculate accuracy of this epoch
-    accuracy_of_this_epoch = correct_pred / pred_num_epoch_level
+    accuracy_of_this_epoch = correct_epoch_level / pred_num_epoch_level
 
     # record metric on validation set for determining the best model to be saved
     if not training:
