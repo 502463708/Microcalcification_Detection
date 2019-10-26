@@ -35,6 +35,7 @@ def ParseArguments():
     os.mkdir(args.dst_data_root_dir)
     os.mkdir(os.path.join(args.dst_data_root_dir, 'images'))
     os.mkdir(os.path.join(args.dst_data_root_dir, 'labels'))
+    os.mkdir(os.path.join(args.dst_data_root_dir, 'stacked_data_in_nii_format'))
 
     return args
 
@@ -50,9 +51,6 @@ def TestConvertXml2Mask(args):
     # set up logger
     logger = Logger(args.dst_data_root_dir)
 
-    dst_image_dir = os.path.join(args.dst_data_root_dir, 'images')
-    dst_label_dir = os.path.join(args.dst_data_root_dir, 'labels')
-
     image_filename_list = os.listdir(src_image_dir)
 
     # for statistical purpose
@@ -67,17 +65,10 @@ def TestConvertXml2Mask(args):
         logger.write_and_print(
             'Processing {} out of {}, filename: {}'.format(current_idx, len(image_filename_list), image_filename))
 
-        xml_filename = image_filename.replace('png', 'xml')
-
-        absolute_src_image_path = os.path.join(src_image_dir, image_filename)
-        absolute_src_xml_path = os.path.join(src_xml_dir, xml_filename)
-        absolute_dst_image_path = os.path.join(dst_image_dir, image_filename)
-        absolute_dst_label_path = os.path.join(dst_label_dir, image_filename)
-
         qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
-        other_lesion_count_image_level = image_with_xml2image_with_mask(absolute_src_image_path, absolute_src_xml_path,
-                                                                        absolute_dst_image_path,
-                                                                        absolute_dst_label_path,
+        other_lesion_count_image_level = image_with_xml2image_with_mask(args.src_data_root_dir,
+                                                                        args.dst_data_root_dir,
+                                                                        image_filename,
                                                                         args.diameter_threshold,
                                                                         logger=logger)
 

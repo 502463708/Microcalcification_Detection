@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import os
 import shutil
+import SimpleITK as sitk
 import xml.etree.ElementTree as ET
 
 from skimage.draw import polygon
@@ -57,16 +58,39 @@ class ImageLevelAnnotationCollection(object):
         return
 
 
-def generate_null_label(absolute_src_image_path, absolute_dst_label_path):
+def generate_null_label(src_data_root_dir, dst_data_root_dir, image_filename):
+    absolute_src_image_path = os.path.join(src_data_root_dir, 'images', image_filename)
+    absolute_dst_label_path = os.path.join(dst_data_root_dir, 'labels', image_filename)
+    absolute_dst_stacked_data_path = os.path.join(dst_data_root_dir, 'stacked_data_in_nii_format',
+                                                  image_filename.replace('png', 'nii'))
+
+    assert os.path.exists(absolute_src_image_path)
+
+    # saving label
     image_np = cv2.imread(absolute_src_image_path, cv2.IMREAD_GRAYSCALE)
     label_np = np.zeros_like(image_np, dtype='uint8')
     cv2.imwrite(absolute_dst_label_path, label_np)
 
+    # saving stacked data for the debug purpose
+    stacked_np = np.concatenate((np.expand_dims(image_np, axis=0), np.expand_dims(label_np, axis=0)), axis=0)
+    stacked_image = sitk.GetImageFromArray(stacked_np)
+    sitk.WriteImage(stacked_image, absolute_dst_stacked_data_path)
+
     return
 
 
-def generate_label_according_to_xml(absolute_src_image_path, absolute_src_xml_path, absolute_dst_label_path,
-                                    logger=None, diameter_threshold=14):
+def generate_label_according_to_xml(src_data_root_dir, dst_data_root_dir, image_filename, logger=None,
+                                    diameter_threshold=14):
+    absolute_src_image_path = os.path.join(src_data_root_dir, 'images', image_filename)
+    xml_filename = image_filename.replace('png', 'xml')
+    absolute_src_xml_path = os.path.join(src_data_root_dir, 'xml_annotations', xml_filename)
+    absolute_dst_label_path = os.path.join(dst_data_root_dir, 'labels', image_filename)
+    absolute_dst_stacked_data_path = os.path.join(dst_data_root_dir, 'stacked_data_in_nii_format',
+                                                  image_filename.replace('png', 'nii'))
+
+    assert os.path.exists(absolute_src_image_path)
+    assert os.path.exists(absolute_src_xml_path)
+
     image_np = cv2.imread(absolute_src_image_path, cv2.IMREAD_GRAYSCALE)
     xml_obj = ImageLevelAnnotationCollection(absolute_src_xml_path)
 
@@ -137,9 +161,14 @@ def generate_label_according_to_xml(absolute_src_image_path, absolute_src_xml_pa
                 column_idx = coordinate[1]
                 label_np[row_idx][column_idx] = 255
 
+    # saving label
     label_np[other_lesion_mask_np == 255] = 125
-
     cv2.imwrite(absolute_dst_label_path, label_np)
+
+    # saving stacked data for the debug purpose
+    stacked_np = np.concatenate((np.expand_dims(image_np, axis=0), np.expand_dims(label_np, axis=0)), axis=0)
+    stacked_image = sitk.GetImageFromArray(stacked_np)
+    sitk.WriteImage(stacked_image, absolute_dst_stacked_data_path)
 
     if logger is None:
         print('This image contains {} qualified calcifications.'.format(qualified_calcification_count_image_level))
@@ -156,8 +185,14 @@ def generate_label_according_to_xml(absolute_src_image_path, absolute_src_xml_pa
            other_lesion_count_image_level
 
 
-def image_with_xml2image_with_mask(absolute_src_image_path, absolute_src_xml_path, absolute_dst_image_path,
-                                   absolute_dst_label_path, diameter_threshold, logger=None):
+def image_with_xml2image_with_mask(src_data_root_dir, dst_data_root_dir, image_filename, diameter_threshold,
+                                   logger=None):
+    absolute_src_image_path = os.path.join(src_data_root_dir, 'images', image_filename)
+    xml_filename = image_filename.replace('png', 'xml')
+    absolute_src_xml_path = os.path.join(src_data_root_dir, 'xml_annotations', xml_filename)
+    absolute_dst_image_path = os.path.join(dst_data_root_dir, 'images', image_filename)
+    absolute_dst_label_path = os.path.join(dst_data_root_dir, 'labels', image_filename)
+
     # the source image must exist
     assert os.path.exists(absolute_src_image_path)
 
@@ -176,7 +211,7 @@ def image_with_xml2image_with_mask(absolute_src_image_path, absolute_src_xml_pat
         else:
             logger.write_and_print('This image does not have xml annotation.')
 
-        generate_null_label(absolute_src_image_path, absolute_dst_label_path)
+        generate_null_label(src_data_root_dir, dst_data_root_dir, image_filename)
     # if this image has its corresponding xml file -> generate a mask according to its xml file
     else:
         if logger is None:
@@ -186,15 +221,15 @@ def image_with_xml2image_with_mask(absolute_src_image_path, absolute_src_xml_pat
 
         if diameter_threshold == -1:
             qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
-            other_lesion_count_image_level = generate_label_according_to_xml(absolute_src_image_path,
-                                                                             absolute_src_xml_path,
-                                                                             absolute_dst_label_path,
+            other_lesion_count_image_level = generate_label_according_to_xml(src_data_root_dir,
+                                                                             dst_data_root_dir,
+                                                                             image_filename,
                                                                              logger)
         else:
             qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
-            other_lesion_count_image_level = generate_label_according_to_xml(absolute_src_image_path,
-                                                                             absolute_src_xml_path,
-                                                                             absolute_dst_label_path,
+            other_lesion_count_image_level = generate_label_according_to_xml(src_data_root_dir,
+                                                                             dst_data_root_dir,
+                                                                             image_filename,
                                                                              logger,
                                                                              diameter_threshold)
 
