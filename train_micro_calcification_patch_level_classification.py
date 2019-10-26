@@ -8,7 +8,7 @@ import visdom
 
 from common.utils import save_best_ckpt
 from config.config_micro_calcification_patch_level_classification import cfg
-from dataset.dataset_micro_calcification import MicroCalcificationDataset
+from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
 from metrics.metrics_patch_level_classification import MetricsImageLevelClassification
 from logger.logger import Logger
 from torch.nn import CrossEntropyLoss

@@ -11,7 +11,7 @@ import torch.nn as nn
 from common.utils import BatchImageToNumber
 from common.utils import save_best_ckpt
 from config.config_micro_calcification_patch_level_quantity_regression import cfg
-from dataset.dataset_micro_calcification import MicroCalcificationDataset
+from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
 from metrics.metrics_patch_level_quantity_regression import MetricsImageLEvelQuantityRegression
 from logger.logger import Logger
 from torch.nn import CrossEntropyLoss

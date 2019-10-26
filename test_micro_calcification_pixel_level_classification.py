@@ -9,7 +9,7 @@ import torch.backends.cudnn as cudnn
 
 from common.utils import extract_classification_preds_channel
 from config.config_micro_calcification_pixel_level_classification import cfg
-from dataset.dataset_micro_calcification import MicroCalcificationDataset
+from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
 from logger.logger import Logger
 from metrics.metrics_pixel_level_classification import MetricsPixelLevelClassification
 from net.vnet2d_v3 import VNet2d

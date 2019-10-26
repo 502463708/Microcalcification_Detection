@@ -6,7 +6,7 @@ import torch.backends.cudnn as cudnn
 
 from cam.cam import *
 from config.config_micro_calcification_patch_level_classification import cfg
-from dataset.dataset_micro_calcification import MicroCalcificationDataset
+from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
 from logger.logger import Logger
 from metrics.metrics_patch_level_classification import MetricsImageLevelClassification
 from net.resnet18 import ResNet18
