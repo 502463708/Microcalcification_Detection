@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import os
 import shutil
+
 from config.config_micro_calcification_patch_levelreconstruction import cfg
 from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
 from torch.utils.data import DataLoader
@@ -11,67 +12,67 @@ from torch.utils.data import DataLoader
 def ParseArguments():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--output_dir',
+    parser.add_argument('--dst_data_root_dir',
                         type=str,
-                        default='/data/lars/data/Inbreast-dataset-cropped-pathches/',
+                        default='/data/lars/results/Inbreast-patch-level-split-pos2neg-ratio-1-dataset-test/',
                         help='Destination data dir.')
 
     parser.add_argument('--mode',
                         type=str,
                         default='training',
-                        help='within training , validation or test')
+                        help='Only training, validation or test is supported.')
 
     parser.add_argument('--num_epoch',
                         type=int,
                         default=5,
-                        help='epoch for test')
+                        help='The epoch number for test.')
 
     parser.add_argument('--batch_size',
                         type=int,
                         default=480,
-                        help='the patch number in each batch')
+                        help='The patch number in each batch.')
 
     parser.add_argument('--num_workers',
                         type=int,
                         default=24,
-                        help='')
+                        help='The number of thread.')
 
     args = parser.parse_args()
+
+    # remove the existing folder with the same name
+    if os.path.isdir(args.dst_data_root_dir):
+        shutil.rmtree(args.dst_data_root_dir)
+
+    # create a new folder
+    os.mkdir(args.dst_data_root_dir)
 
     return args
 
 
-def MicroCalcificationReconstructionDatasetTest(args):
-    # remove the existing folder with the same name
-    if os.path.isdir(args.output_dir):
-        shutil.rmtree(args.output_dir)
-
-    # create a new folder
-    os.mkdir(args.output_dir)
-
-    # create dataset for training
-    training_dataset = MicroCalcificationDataset(data_root_dir=cfg.general.data_root_dir,
-                                                 mode=args.mode,
-                                                 enable_random_sampling=False,
-                                                 pos_to_neg_ratio=cfg.dataset.pos_to_neg_ratio,
-                                                 image_channels=cfg.dataset.image_channels,
-                                                 cropping_size=cfg.dataset.cropping_size,
-                                                 dilation_radius=cfg.dataset.dilation_radius,
-                                                 calculate_micro_calcification_number=cfg.dataset.calculate_micro_calcification_number,
-                                                 enable_data_augmentation=cfg.dataset.augmentation.enable_data_augmentation,
-                                                 enable_vertical_flip=cfg.dataset.augmentation.enable_vertical_flip,
-                                                 enable_horizontal_flip=cfg.dataset.augmentation.enable_horizontal_flip)
+def MicroCalcificationPatchLevelDatasetTest(args):
+    # create dataset
+    dataset = MicroCalcificationDataset(data_root_dir=cfg.general.data_root_dir,
+                                        mode=args.mode,
+                                        enable_random_sampling=False,
+                                        pos_to_neg_ratio=cfg.dataset.pos_to_neg_ratio,
+                                        image_channels=cfg.dataset.image_channels,
+                                        cropping_size=cfg.dataset.cropping_size,
+                                        dilation_radius=cfg.dataset.dilation_radius,
+                                        calculate_micro_calcification_number=cfg.dataset.calculate_micro_calcification_number,
+                                        enable_data_augmentation=cfg.dataset.augmentation.enable_data_augmentation,
+                                        enable_vertical_flip=cfg.dataset.augmentation.enable_vertical_flip,
+                                        enable_horizontal_flip=cfg.dataset.augmentation.enable_horizontal_flip)
 
     # create data loader for training
-    training_data_loader = DataLoader(training_dataset,
-                                      batch_size=args.batch_size,
-                                      shuffle=True,
-                                      num_workers=args.num_workers)
+    data_loader = DataLoader(dataset,
+                             batch_size=args.batch_size,
+                             shuffle=True,
+                             num_workers=args.num_workers)
 
     # enumerating
     for epoch_idx in range(args.num_epoch):
         # create folder for this epoch
-        output_dir_epoch = os.path.join(args.output_dir, 'epoch_{0}'.format(epoch_idx))
+        output_dir_epoch = os.path.join(args.dst_data_root_dir, 'epoch_{0}'.format(epoch_idx))
         os.mkdir(output_dir_epoch)
 
         print('-------------------------------------------------------------------------------------------------------')
@@ -81,7 +82,10 @@ def MicroCalcificationReconstructionDatasetTest(args):
         positive_patch_num_for_this_epoch = 0
         negative_patch_num_for_this_epoch = 0
 
-        for batch_idx, (images_tensor, _, _, image_level_labels_tensor, _, filenames) in enumerate(training_data_loader):
+        for batch_idx, (
+                images_tensor, pixel_level_labels_tensor, pixel_level_labels_dilated_tensor, image_level_labels_tensor,
+                _,
+                filenames) in enumerate(data_loader):
             # create folder for this batch
             output_dir_batch = os.path.join(output_dir_epoch, 'batch_{0}'.format(batch_idx))
             os.mkdir(output_dir_batch)
@@ -99,25 +103,43 @@ def MicroCalcificationReconstructionDatasetTest(args):
             negative_patch_num_for_this_batch = 0
 
             images_np = images_tensor.cpu().numpy()
+            pixel_level_labels_np = pixel_level_labels_tensor.cpu().numpy()
+            pixel_level_labels_dilated_np = pixel_level_labels_dilated_tensor.cpu().numpy()
             image_level_labels_np = image_level_labels_tensor.cpu().numpy()
 
             for image_idx in range(images_np.shape[0]):
                 image_np = images_np[image_idx, 0, :, :]
-                label = image_level_labels_np[image_idx, 0]
+                pixel_level_label_np = pixel_level_labels_np[image_idx, :, :]
+                pixel_level_label_dilated_np = pixel_level_labels_dilated_np[image_idx, :, :]
+                image_level_label = image_level_labels_np[image_idx, 0]
                 filename = filenames[image_idx]
 
                 image_np *= 255
                 image_np = image_np.astype(np.uint8)
 
-                # label of each patch is either 0 or 1
-                assert label in [0, 1]
+                pixel_level_label_np *= 255
+                pixel_level_label_np = pixel_level_label_np.astype(np.uint8)
 
-                if label == 1:
+                pixel_level_label_dilated_np *= 255
+                pixel_level_label_dilated_np = pixel_level_label_dilated_np.astype(np.uint8)
+
+                # image_level_label is either 0 or 1
+                assert image_level_label in [0, 1]
+
+                if image_level_label == 1:
                     cv2.imwrite(os.path.join(output_dir_positive, filename), image_np)
+                    cv2.imwrite(os.path.join(output_dir_positive, filename.replace('.png', '_mask.png')),
+                                pixel_level_label_np)
+                    cv2.imwrite(os.path.join(output_dir_positive, filename.replace('.png', '_dilated_mask.png')),
+                                pixel_level_label_dilated_np)
                     positive_patch_num_for_this_epoch += 1
                     positive_patch_num_for_this_batch += 1
-                elif label == 0:
+                elif image_level_label == 0:
                     cv2.imwrite(os.path.join(output_dir_negative, filename), image_np)
+                    cv2.imwrite(os.path.join(output_dir_negative, filename.replace('.png', '_mask.png')),
+                                pixel_level_label_np)
+                    cv2.imwrite(os.path.join(output_dir_negative, filename.replace('.png', '_dilated_mask.png')),
+                                pixel_level_label_dilated_np)
                     negative_patch_num_for_this_epoch += 1
                     negative_patch_num_for_this_batch += 1
 
@@ -131,12 +153,10 @@ def MicroCalcificationReconstructionDatasetTest(args):
                                                                     positive_patch_num_for_this_epoch,
                                                                     negative_patch_num_for_this_epoch))
 
-    return 0
+    return
 
 
 if __name__ == '__main__':
-    # saving results dir
-
     args = ParseArguments()
 
-    MicroCalcificationReconstructionDatasetTest(args)
+    MicroCalcificationPatchLevelDatasetTest(args)

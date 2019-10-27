@@ -72,6 +72,8 @@ class MicroCalcificationDataset(Dataset):
         assert isinstance(enable_horizontal_flip, bool)
         self.enable_horizontal_flip = enable_horizontal_flip
 
+        return
+
     def __getitem__(self, index):
         """
         :param index
@@ -120,8 +122,11 @@ class MicroCalcificationDataset(Dataset):
         # load pixel-level label
         pixel_level_label_np = cv2.imread(pixel_level_label_path, cv2.IMREAD_GRAYSCALE)
         pixel_level_label_np = pixel_level_label_np.astype(np.float)
-        if pixel_level_label_np.max() == 255:
-            pixel_level_label_np /= 255.0
+
+        # process pixel-level label                            # normal tissue: 0 (.png) -> 0 (tensor)
+        pixel_level_label_np[pixel_level_label_np == 255] = 1  # micro calcification: 255 (.png) -> 1 (tensor)
+        pixel_level_label_np[pixel_level_label_np == 165] = 0  # other lesion: 165 (.png) -> 0 (tensor)
+        pixel_level_label_np[pixel_level_label_np == 85] = 0  # background: 85 (.png) -> 0 (tensor)
 
         # check the consistency of size between image and its pixel-level label
         assert image_np.shape == pixel_level_label_np.shape
