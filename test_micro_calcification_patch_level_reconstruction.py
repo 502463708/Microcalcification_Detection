@@ -7,7 +7,7 @@ import SimpleITK as sitk
 import torch
 import torch.backends.cudnn as cudnn
 
-from config.config_micro_calcification_patch_levelreconstruction import cfg
+from config.config_micro_calcification_patch_level_reconstruction import cfg
 from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
 from logger.logger import Logger
 from metrics.metrics_patch_level_reconstruction import MetricsReconstruction

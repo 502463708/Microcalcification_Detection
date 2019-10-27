@@ -4,7 +4,7 @@ import numpy as np
 import os
 import shutil
 
-from config.config_micro_calcification_patch_levelreconstruction import cfg
+from config.config_micro_calcification_patch_level_reconstruction import cfg
 from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
 from torch.utils.data import DataLoader
 
