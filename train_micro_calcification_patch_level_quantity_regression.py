@@ -52,7 +52,7 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
 
     pred_num_epoch_level = 0
     correct_epoch_level = 0
-    Distance_epoch_list = np.empty(shape=1)
+    distance_epoch_level=0
 
     # start time of this epoch
     start_time_for_epoch = time()
@@ -96,7 +96,7 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
             metrics.metric_batch_level(preds_tensor, micro_calcification_number_label_tensor)
         pred_num_epoch_level += preds_tensor.shape[0]
         correct_epoch_level += correct_pred
-        np.append(Distance_epoch_list,Distance_batch_level)
+        distance_epoch_level+=Distance_batch_level
 
         # print logging information
         if logger is not None:
@@ -136,7 +136,7 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
                 print('Error message: ', err)
 
     # calculate loss of this epoch
-    average_loss_of_this_epoch = np.mean(Distance_epoch_list)
+    average_loss_of_this_epoch = distance_epoch_level/pred_num_epoch_level
 
     # calculate accuracy of this epoch
     accuracy_of_this_epoch = correct_epoch_level / pred_num_epoch_level

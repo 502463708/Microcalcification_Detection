@@ -67,7 +67,7 @@ class MetricsImageLEvelQuantityRegression(object):
 
         visual_preds_np = np.array(visual_preds_list)  # shape : B,112,112
         visual_labels_np = np.array(visual_labels_list)
-        distance_batch_level = np.abs(np.subtract(preds, labels))
+        distance_batch_level = np.square(np.subtract(preds, labels))
         assert preds.shape == labels.shape
         correct_pred = np.sum(np.round(preds) == np.round(labels))
 
