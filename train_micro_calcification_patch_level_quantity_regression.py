@@ -11,7 +11,7 @@ import torch.nn as nn
 from common.utils import BatchImageToNumber
 from common.utils import save_best_ckpt
 from config.config_micro_calcification_patch_level_quantity_regression import cfg
-from dataset.dataset_micro_calcification import MicroCalcificationDataset
+from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
 from metrics.metrics_patch_level_quantity_regression import MetricsImageLEvelQuantityRegression
 from logger.logger import Logger
 from torch.nn import CrossEntropyLoss
@@ -51,6 +51,8 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
     # these variable is created for recording the annotated
 
     pred_num_epoch_level = 0
+    correct_epoch_level = 0
+    Distance_epoch_list = np.empty(shape=1)
 
     # start time of this epoch
     start_time_for_epoch = time()
@@ -63,8 +65,7 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
         data_loader):
 
         # start time of this batch
-        correct_epoch_level = 0
-        Distance_epoch_list = []
+
         start_time_for_batch = time()
 
         # transfer the image label tensor into 1 dimension tensor
@@ -95,7 +96,7 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
             metrics.metric_batch_level(preds_tensor, micro_calcification_number_label_tensor)
         pred_num_epoch_level += preds_tensor.shape[0]
         correct_epoch_level += correct_pred
-        Distance_epoch_list.append(Distance_batch_level)
+        np.append(Distance_epoch_list,Distance_batch_level)
 
         # print logging information
         if logger is not None:
@@ -135,7 +136,6 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
                 print('Error message: ', err)
 
     # calculate loss of this epoch
-    Distance_epoch_list=np.array(Distance_epoch_list)
     average_loss_of_this_epoch = np.mean(Distance_epoch_list)
 
     # calculate accuracy of this epoch

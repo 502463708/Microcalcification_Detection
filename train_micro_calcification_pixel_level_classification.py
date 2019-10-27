@@ -9,7 +9,7 @@ import visdom
 from common.utils import extract_classification_preds_channel
 from common.utils import save_best_ckpt
 from config.config_micro_calcification_pixel_level_classification import cfg
-from dataset.dataset_micro_calcification import MicroCalcificationDataset
+from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
 from metrics.metrics_pixel_level_classification import MetricsPixelLevelClassification
 from logger.logger import Logger
 from loss.cross_entropy_loss import CrossEntropyLoss

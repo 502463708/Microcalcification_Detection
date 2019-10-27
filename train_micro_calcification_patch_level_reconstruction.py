@@ -8,7 +8,7 @@ import visdom
 
 from common.utils import save_best_ckpt
 from config.config_micro_calcification_patch_levelreconstruction import cfg
-from dataset.dataset_micro_calcification import MicroCalcificationDataset
+from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
 from metrics.metrics_patch_level_reconstruction import MetricsReconstruction
 from logger.logger import Logger
 from loss.t_test_loss import TTestLoss
