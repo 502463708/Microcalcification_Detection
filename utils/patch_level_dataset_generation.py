@@ -59,7 +59,7 @@ def crop_patches_and_labels(image_path, label_path, patch_size, stride):
 
 
 def filter_and_save_patches_and_labels(save_dir, dataset_type, image_patch_list, label_patch_list, image_name,
-                                       pixel_threshold=1, area_threshold=0.5, logger=None):
+                                       area_threshold=0.5, logger=None):
     pos_patch_count = 0
     neg_patch_count = 0
     other_lesion_patch_count = 0
@@ -73,11 +73,11 @@ def filter_and_save_patches_and_labels(save_dir, dataset_type, image_patch_list,
         height, width = image_patch.shape
 
         this_patch_contain_other_lesion = False
-        if np.where(label_patch == 125)[0].shape[0] > 0:
+        if np.where(label_patch == 165)[0].shape[0] > 0:
             this_patch_contain_other_lesion = True
 
         this_patch_contain_enough_background = False
-        background_area_ratio = np.sum(image_patch < pixel_threshold) / (height * width)
+        background_area_ratio = np.sum(label_patch == 85) / (height * width)
         if background_area_ratio >= area_threshold:
             this_patch_contain_enough_background = True
 

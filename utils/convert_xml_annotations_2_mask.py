@@ -58,7 +58,7 @@ class ImageLevelAnnotationCollection(object):
         return
 
 
-def generate_null_label(src_data_root_dir, dst_data_root_dir, image_filename):
+def generate_label_from_image(src_data_root_dir, dst_data_root_dir, image_filename):
     absolute_src_image_path = os.path.join(src_data_root_dir, 'images', image_filename)
     absolute_dst_label_path = os.path.join(dst_data_root_dir, 'labels', image_filename)
     absolute_dst_stacked_data_path = os.path.join(dst_data_root_dir, 'stacked_data_in_nii_format',
@@ -66,9 +66,13 @@ def generate_null_label(src_data_root_dir, dst_data_root_dir, image_filename):
 
     assert os.path.exists(absolute_src_image_path)
 
-    # saving label
     image_np = cv2.imread(absolute_src_image_path, cv2.IMREAD_GRAYSCALE)
     label_np = np.zeros_like(image_np, dtype='uint8')
+
+    # background labelling
+    label_np[image_np == 0] = 85
+
+    # saving label
     cv2.imwrite(absolute_dst_label_path, label_np)
 
     # saving stacked data for the debug purpose
@@ -79,8 +83,8 @@ def generate_null_label(src_data_root_dir, dst_data_root_dir, image_filename):
     return
 
 
-def generate_label_according_to_xml(src_data_root_dir, dst_data_root_dir, image_filename, logger=None,
-                                    diameter_threshold=14):
+def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename, logger=None,
+                            diameter_threshold=14):
     absolute_src_image_path = os.path.join(src_data_root_dir, 'images', image_filename)
     xml_filename = image_filename.replace('png', 'xml')
     absolute_src_xml_path = os.path.join(src_data_root_dir, 'xml_annotations', xml_filename)
@@ -95,8 +99,12 @@ def generate_label_according_to_xml(src_data_root_dir, dst_data_root_dir, image_
     xml_obj = ImageLevelAnnotationCollection(absolute_src_xml_path)
 
     label_np = np.zeros_like(image_np)  # column, row
+    background_mask_np = np.zeros_like(image_np)  # column, row
     calcification_mask_np = np.zeros_like(image_np)  # column, row
     other_lesion_mask_np = np.zeros_like(image_np)  # column, row
+
+    # background labelling
+    background_mask_np[image_np == 0] = 1
 
     # for statistical purpose
     qualified_calcification_count_image_level = 0
@@ -116,13 +124,13 @@ def generate_label_according_to_xml(src_data_root_dir, dst_data_root_dir, image_
             # in case that only one pixel is annotated
             if len(row_indexes) == 0:
                 for coordinate in coordinate_list:
-                    calcification_mask_np[coordinate[1], coordinate[0]] = 255
+                    calcification_mask_np[coordinate[1], coordinate[0]] = 1
             else:
                 # to avoid the situation that coordinate indexes get out of range
                 height, width = image_np.shape
                 row_indexes = np.clip(row_indexes, 0, height - 1)
                 column_indexes = np.clip(column_indexes, 0, width - 1)
-                calcification_mask_np[row_indexes, column_indexes] = 255  # row ,column
+                calcification_mask_np[row_indexes, column_indexes] = 1  # row ,column
 
         # for the other lesion annotations
         else:
@@ -130,13 +138,13 @@ def generate_label_according_to_xml(src_data_root_dir, dst_data_root_dir, image_
             # in case that only one pixel is annotated
             if len(row_indexes) == 0:
                 for coordinate in coordinate_list:
-                    other_lesion_mask_np[coordinate[1], coordinate[0]] = 255
+                    other_lesion_mask_np[coordinate[1], coordinate[0]] = 1
             else:
                 # to avoid the situation that coordinate indexes get out of range
                 height, width = image_np.shape
                 row_indexes = np.clip(row_indexes, 0, height - 1)
                 column_indexes = np.clip(column_indexes, 0, width - 1)
-                other_lesion_mask_np[row_indexes, column_indexes] = 255  # row ,column
+                other_lesion_mask_np[row_indexes, column_indexes] = 1  # row ,column
 
     # analyse the connected components for calcification_mask_np
     calcification_connected_components = measure.label(input=calcification_mask_np, connectivity=2)
@@ -150,7 +158,7 @@ def generate_label_according_to_xml(src_data_root_dir, dst_data_root_dir, image_
             for coordinate in coordinates:
                 row_idx = coordinate[0]
                 column_idx = coordinate[1]
-                label_np[row_idx][column_idx] = 125
+                label_np[row_idx][column_idx] = 165
 
         # a tiny calcification is considered as a qualified calcification
         else:
@@ -162,7 +170,8 @@ def generate_label_according_to_xml(src_data_root_dir, dst_data_root_dir, image_
                 label_np[row_idx][column_idx] = 255
 
     # saving label
-    label_np[other_lesion_mask_np == 255] = 125
+    label_np[other_lesion_mask_np == 1] = 165
+    label_np[background_mask_np == 1] = 85
     cv2.imwrite(absolute_dst_label_path, label_np)
 
     # saving stacked data for the debug purpose
@@ -191,7 +200,6 @@ def image_with_xml2image_with_mask(src_data_root_dir, dst_data_root_dir, image_f
     xml_filename = image_filename.replace('png', 'xml')
     absolute_src_xml_path = os.path.join(src_data_root_dir, 'xml_annotations', xml_filename)
     absolute_dst_image_path = os.path.join(dst_data_root_dir, 'images', image_filename)
-    absolute_dst_label_path = os.path.join(dst_data_root_dir, 'labels', image_filename)
 
     # the source image must exist
     assert os.path.exists(absolute_src_image_path)
@@ -211,7 +219,7 @@ def image_with_xml2image_with_mask(src_data_root_dir, dst_data_root_dir, image_f
         else:
             logger.write_and_print('This image does not have xml annotation.')
 
-        generate_null_label(src_data_root_dir, dst_data_root_dir, image_filename)
+        generate_label_from_image(src_data_root_dir, dst_data_root_dir, image_filename)
     # if this image has its corresponding xml file -> generate a mask according to its xml file
     else:
         if logger is None:
@@ -221,17 +229,17 @@ def image_with_xml2image_with_mask(src_data_root_dir, dst_data_root_dir, image_f
 
         if diameter_threshold == -1:
             qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
-            other_lesion_count_image_level = generate_label_according_to_xml(src_data_root_dir,
-                                                                             dst_data_root_dir,
-                                                                             image_filename,
-                                                                             logger)
+            other_lesion_count_image_level = generate_label_from_xml(src_data_root_dir,
+                                                                     dst_data_root_dir,
+                                                                     image_filename,
+                                                                     logger)
         else:
             qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
-            other_lesion_count_image_level = generate_label_according_to_xml(src_data_root_dir,
-                                                                             dst_data_root_dir,
-                                                                             image_filename,
-                                                                             logger,
-                                                                             diameter_threshold)
+            other_lesion_count_image_level = generate_label_from_xml(src_data_root_dir,
+                                                                     dst_data_root_dir,
+                                                                     image_filename,
+                                                                     logger,
+                                                                     diameter_threshold)
 
     return qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
            other_lesion_count_image_level

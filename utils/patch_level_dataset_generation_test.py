@@ -28,11 +28,6 @@ def ParseArguments():
                         default=56,
                         help='The stride move from one patch to another.')
 
-    parser.add_argument('--pixel_threshold',
-                        type=int,
-                        default=1,
-                        help='Pixels whose intensity < pixel_threshold will be considered as background.')
-
     parser.add_argument('--training_area_threshold',
                         type=float,
                         default=0.6,
@@ -106,7 +101,6 @@ def TestPatchLevelDatasetGeneration(args):
             background_patch_count_image_level = filter_and_save_patches_and_labels(args.dst_data_root_dir,
                                                                                     dataset_type, patch_list,
                                                                                     label_list, filename,
-                                                                                    pixel_threshold=args.pixel_threshold,
                                                                                     area_threshold=area_threshold,
                                                                                     logger=logger)
 
