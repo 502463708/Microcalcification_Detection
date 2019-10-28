@@ -54,30 +54,38 @@ class MetricsImageLEvelQuantityRegression(object):
             # transform the tensor into ndarray format
             labels = labels.numpy()
 
+        classification_flag_list = list()
         visual_preds_list = list()
         visual_labels_list = list()
 
         for patch_idx in range(preds.shape[0]):
             pred = preds[patch_idx, 0]
             label = labels[patch_idx, 0]
-            pred_img, label_img = self.metric_patch_level(pred, label)
-
+            pred_img, label_img, classification_flag = self.metric_patch_level(pred, label)
             visual_preds_list.append(pred_img)
             visual_labels_list.append(label_img)
+            classification_flag_list.append(classification_flag)
 
+        classification_flag_np = np.array(classification_flag_list)
         visual_preds_np = np.array(visual_preds_list)  # shape : B,112,112
         visual_labels_np = np.array(visual_labels_list)
-        distance_batch_level = np.abs(np.subtract(preds, labels))
-        assert preds.shape == labels.shape
-        correct_pred = np.sum(np.round(preds) == labels)
-
-        return visual_preds_np, visual_labels_np, distance_batch_level, correct_pred
+        distance_batch_level = np.sum(np.square(np.subtract(preds, labels)))
+        over_preds_batch_level = (classification_flag_np == 0).sum()
+        correct_preds_batch_level = (classification_flag_np == 1).sum()
+        under_preds_batch_level = (classification_flag_np == 2).sum()
+        return classification_flag_np, visual_preds_np, visual_labels_np, distance_batch_level, over_preds_batch_level, \
+               correct_preds_batch_level, under_preds_batch_level
 
     def metric_patch_level(self, pred, label):
-        # pred and label is a number
-        assert len(pred.shape) == 1
-        assert len(label.shape) == 1
-
+        # # pred and label is a number
+        assert len(pred.shape) == 0
+        assert len(label.shape) == 0
+        if np.round(pred) > np.round(label):
+            classification_flag = 0
+        elif np.round(pred) == np.round(label):
+            classification_flag = 1
+        elif np.round(pred) < np.round(label):
+            classification_flag = 2
         # transform into 112*112 images
         pred_image = np.zeros((112, 112), dtype=np.uint8)
         cv2.putText(pred_image, str(pred), (20, 65), cv2.FONT_HERSHEY_COMPLEX, 1, 255, 1)
@@ -85,7 +93,7 @@ class MetricsImageLEvelQuantityRegression(object):
 
         # again for label
         label_image = np.zeros((112, 112), dtype=np.uint8)
-        cv2.putText(label_image, str(pred), (20, 65), cv2.FONT_HERSHEY_COMPLEX, 1, 255, 1)
+        cv2.putText(label_image, str(label), (20, 65), cv2.FONT_HERSHEY_COMPLEX, 1, 255, 1)
         # image , input text ,left down coord, font ,font size ,color , thickness
 
-        return pred_image, label_image
+        return pred_image, label_image,classification_flag

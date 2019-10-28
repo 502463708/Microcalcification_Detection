@@ -2,7 +2,6 @@ import importlib
 import numpy as np
 import os
 import shutil
-import statistics
 import torch
 import torch.backends.cudnn as cudnn
 import visdom
@@ -51,6 +50,10 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
     # these variable is created for recording the annotated
 
     pred_num_epoch_level = 0
+    over_preds_epoch_level = 0
+    correct_epoch_level = 0
+    under_preds_epoch_level = 0
+    distance_epoch_level = 0
 
     # start time of this epoch
     start_time_for_epoch = time()
@@ -63,8 +66,7 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
         data_loader):
 
         # start time of this batch
-        correct_epoch_level = 0
-        Distance_epoch_list = []
+
         start_time_for_batch = time()
 
         # transfer the image label tensor into 1 dimension tensor
@@ -91,11 +93,14 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
             optimizer.step()
 
         # metrics
-        visual_preds_np, visual_label_np, Distance_batch_level, correct_pred = \
-            metrics.metric_batch_level(preds_tensor, micro_calcification_number_label_tensor)
+        classification_flag_np, visual_preds_np, visual_labels_np, distance_batch_level, over_preds_batch_level, \
+        correct_preds_batch_level, under_preds_batch_level = metrics.metric_batch_level(preds_tensor,
+                                                                                        micro_calcification_number_label_tensor)
         pred_num_epoch_level += preds_tensor.shape[0]
-        correct_epoch_level += correct_pred
-        Distance_epoch_list.append(Distance_batch_level)
+        over_preds_epoch_level += over_preds_batch_level
+        correct_epoch_level += correct_preds_batch_level
+        under_preds_epoch_level += under_preds_batch_level
+        distance_epoch_level += distance_batch_level
 
         # print logging information
         if logger is not None:
@@ -126,7 +131,7 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
                     opts=dict(title='NPre{}'.format('T' if training else 'V'))
                 )
                 visdom_obj.images(
-                    np.expand_dims(visual_label_np, axis=1),
+                    np.expand_dims(visual_labels_np, axis=1),
                     win='NLab{}'.format('T' if training else 'V'),
                     nrow=1,
                     opts=dict(title='NLab{}'.format('T' if training else 'V'))
@@ -135,7 +140,7 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
                 print('Error message: ', err)
 
     # calculate loss of this epoch
-    average_loss_of_this_epoch = statistics.mean(Distance_epoch_list)
+    average_loss_of_this_epoch = distance_epoch_level / pred_num_epoch_level
 
     # calculate accuracy of this epoch
     accuracy_of_this_epoch = correct_epoch_level / pred_num_epoch_level
