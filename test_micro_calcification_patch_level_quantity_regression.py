@@ -1,11 +1,12 @@
 import argparse
+import cv2
+import numpy as np
 import os
 import shutil
 import torch
 import torch.backends.cudnn as cudnn
 
-from cam.cam import *
-from config.config_micro_calcification_patch_level_classification import cfg
+from config.config_micro_calcification_patch_level_quantity_regression import cfg
 from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
 from logger.logger import Logger
 from metrics.metrics_patch_level_quantity_regression import MetricsImageLEvelQuantityRegression
@@ -21,11 +22,11 @@ def ParseArguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_root_dir',
                         type=str,
-                        default='/data/lars/data/Inbreast-dataset-cropped-pathches-connected-component-1/',
+                        default='/home/groupprofzli/data1/dwz/Inbreast-patch-level-split-pos2neg-ratio-1-dataset/',
                         help='Source data dir.')
     parser.add_argument('--model_saving_dir',
                         type=str,
-                        default='/data/lars/models/20190923_uCs_image_level_classification_connected_1_CE_default/',
+                        default='/home/groupprofzli/data1/dwz/data/models/20191027_uCs_quantity_regression_L1/',
                         help='Model saved dir.')
     parser.add_argument('--epoch_idx',
                         type=int,
@@ -39,10 +40,6 @@ def ParseArguments():
                         type=int,
                         default=48,
                         help='Batch size for evaluation.')
-    parser.add_argument('--enable_CAM',
-                        type=bool,
-                        default=True,
-                        help='Whether CAM results can be saved.')
 
     args = parser.parse_args()
 
@@ -57,18 +54,18 @@ def TestMicroCalcificationPatchLevelQuantityRegression(args):
                                              args.dataset_type, args.epoch_idx))
     visualization_saving_dir = os.path.join(prediction_saving_dir, 'qualitative_results')
 
-    loss_saving_dir = os.path.join(visualization_saving_dir, 'loss')
-    accuracy_saving_dir = os.path.join(visualization_saving_dir, 'accuracy')
-
+    over_preds_dir = os.path.join(visualization_saving_dir, 'over_preds')
+    correct_preds_dir = os.path.join(visualization_saving_dir, 'correct_preds')
+    under_preds_dir = os.path.join(visualization_saving_dir, 'under_preds')
 
     # remove existing dir which has the same name and create clean dir
     if os.path.exists(prediction_saving_dir):
         shutil.rmtree(prediction_saving_dir)
     os.mkdir(prediction_saving_dir)
     os.mkdir(visualization_saving_dir)
-    os.mkdir(loss_saving_dir)
-    os.mkdir(accuracy_saving_dir)
-
+    os.mkdir(over_preds_dir)
+    os.mkdir(correct_preds_dir)
+    os.mkdir(under_preds_dir)
 
     # initialize logger
     logger = Logger(prediction_saving_dir, 'quantitative_results.txt')
@@ -97,7 +94,7 @@ def TestMicroCalcificationPatchLevelQuantityRegression(args):
 
     logger.write_and_print('Load ckpt: {0}...'.format(ckpt_path))
 
- # create dataset and data loader
+    # create dataset and data loader
     dataset = MicroCalcificationDataset(data_root_dir=args.data_root_dir,
                                         mode=args.dataset_type,
                                         enable_random_sampling=False,
@@ -113,54 +110,57 @@ def TestMicroCalcificationPatchLevelQuantityRegression(args):
 
     metrics = MetricsImageLEvelQuantityRegression(cfg.dataset.cropping_size)
 
-    correct_epoch_level = 0
-    Distance_epoch_list = []
+    pred_num_epoch_level = 0
+    distance_epoch_level = 0
+    over_pred_epoch_level = 0
+    correct_pred_epoch_level = 0
+    under_pred_epoch_level = 0
 
-
-
-    for batch_idx, (images_tensor, pixel_level_labels_tensor, _, image_level_labels_tensor, _, filenames) in enumerate(
-            data_loader):
+    for batch_idx, (
+            images_tensor, pixel_level_labels_tensor, _, image_level_labels_tensor,
+            micro_calcification_number_label_tensor,
+            filenames) in enumerate(
+        data_loader):
         # start time of this batch
         start_time_for_batch = time()
 
         # transfer the tensor into gpu device
         images_tensor = images_tensor.cuda()
-
-        # reshape the label to meet the requirement of CrossEntropy
-        image_level_labels_tensor = image_level_labels_tensor.view(-1)  # [B, C] -> [B]
+        pixel_level_labels_tensor = pixel_level_labels_tensor.cuda()
+        micro_calcification_number_label_tensor = micro_calcification_number_label_tensor.type(torch.FloatTensor)
+        micro_calcification_number_label_tensor = micro_calcification_number_label_tensor.cuda()
 
         # network forward
-        preds_tensor = net(images_tensor)
+        preds_tensor = net(images_tensor)  # the shape of preds_tensor: [B*1]
 
-        # evaluation
         # metrics
-        visual_preds_np, visual_label_np, Distance_batch_level, correct_pred = \
+        classification_flag_np, visual_preds_np, visual_labels_np, distance_batch_level, over_preds_batch_level, \
+        correct_preds_batch_level, under_preds_batch_level = \
             metrics.metric_batch_level(preds_tensor, micro_calcification_number_label_tensor)
         pred_num_epoch_level += preds_tensor.shape[0]
-        correct_epoch_level += correct_pred
-        Distance_epoch_list.append(Distance_batch_level)
-
-        _, classification_flag_np, TPs_batch_level, TNs_batch_level, FPs_batch_level, FNs_batch_level = \
-            metrics.metric_batch_level(preds_tensor, image_level_labels_tensor)
-
-        TPs_epoch_level += TPs_batch_level
-        TNs_epoch_level += TNs_batch_level
-        FPs_epoch_level += FPs_batch_level
-        FNs_epoch_level += FNs_batch_level
+        distance_epoch_level += distance_batch_level
+        over_pred_epoch_level += over_preds_batch_level
+        correct_pred_epoch_level += correct_preds_batch_level
+        under_pred_epoch_level += under_preds_batch_level
 
         # print logging information
-        logger.write_and_print('The number of the TPs of this batch = {}'.format(TPs_batch_level))
-        logger.write_and_print('The number of the TNs of this batch = {}'.format(TNs_batch_level))
-        logger.write_and_print('The number of the FPs of this batch = {}'.format(FPs_batch_level))
-        logger.write_and_print('The number of the FNs of this batch = {}'.format(FNs_batch_level))
+        logger.write_and_print(
+            'The number of the over predicted patches of this batch = {}'.format(over_preds_batch_level))
+        logger.write_and_print(
+            'The number of the correct predicted patches of this batch = {}'.format(correct_preds_batch_level))
+        logger.write_and_print(
+            'The number of the under predicted patches of this batch = {}'.format(under_preds_batch_level))
+        logger.write_and_print('The value of the MSE of this batch = {}'.format(distance_batch_level))
         logger.write_and_print('batch: {}, batch_size: {}, consuming time: {:.4f}s'.format(batch_idx, args.batch_size,
                                                                                            time() - start_time_for_batch))
         logger.write_and_print('--------------------------------------------------------------------------------------')
 
         images_np = images_tensor.cpu().numpy()
-        pixel_level_labels_np = pixel_level_labels_tensor.numpy()
+        pixel_level_labels_np = pixel_level_labels_tensor.cpu().numpy()
         for patch_idx in range(images_tensor.shape[0]):
             image_np = images_np[patch_idx, 0, :, :]
+            visual_pred_np = visual_preds_np[patch_idx, :, :]
+            visual_label_np = visual_labels_np[patch_idx, :, :]
             pixel_level_label_np = pixel_level_labels_np[patch_idx, :, :]
             filename = filenames[patch_idx]
             classification_flag = classification_flag_np[patch_idx]
@@ -174,24 +174,27 @@ def TestMicroCalcificationPatchLevelQuantityRegression(args):
             pixel_level_label_np *= 255
             pixel_level_label_np = pixel_level_label_np.astype(np.uint8)
 
-            flag_2_dir_mapping = {0: 'TPs', 1: 'TNs', 2: 'FPs', 3: 'FNs'}
+            flag_2_dir_mapping = {0: 'over_preds', 1: 'correct_preds', 2: 'under_preds'}
             saving_dir_of_this_patch = os.path.join(visualization_saving_dir, flag_2_dir_mapping[classification_flag])
-
             cv2.imwrite(os.path.join(saving_dir_of_this_patch, filename.replace('.png', '_image.png')), image_np)
             cv2.imwrite(os.path.join(saving_dir_of_this_patch, filename.replace('.png', '_pixel_level_label.png')),
                         pixel_level_label_np)
-
-            if args.enable_CAM:
-                result = generateCAM(net, image_np, "layer3")
-                cv2.imwrite(os.path.join(saving_dir_of_this_patch, filename.replace('.png', '_cam.png')),
-                            result)
+            cv2.imwrite(os.path.join(saving_dir_of_this_patch, filename.replace('.png', '_mask_num.png')),
+                        visual_label_np)
+            cv2.imwrite(os.path.join(saving_dir_of_this_patch, filename.replace('.png', '_pred_num.png')),
+                        visual_pred_np)
 
     # print logging information
     logger.write_and_print('##########################################################################################')
-    logger.write_and_print('The number of the TPs of this dataset = {}'.format(TPs_epoch_level))
-    logger.write_and_print('The number of the TNs of this dataset = {}'.format(TNs_epoch_level))
-    logger.write_and_print('The number of the FPs of this dataset = {}'.format(FPs_epoch_level))
-    logger.write_and_print('The number of the FNs of this dataset = {}'.format(FNs_epoch_level))
+    logger.write_and_print('The number of the patches of this dataset = {}'.format(pred_num_epoch_level))
+    logger.write_and_print(
+        'The number of the over predicted patches of this dataset = {}'.format(over_pred_epoch_level))
+    logger.write_and_print(
+        'The number of the correct predicted patches of this dataset = {}'.format(correct_pred_epoch_level))
+    logger.write_and_print(
+        'The number of the under predicted patches of this dataset = {}'.format(under_pred_epoch_level))
+    logger.write_and_print(
+        'The value of the MSE of this dataset = {}'.format(distance_epoch_level / pred_num_epoch_level))
     logger.write_and_print('consuming time: {:.4f}s'.format(time() - start_time_for_epoch))
     logger.write_and_print('##########################################################################################')
 
