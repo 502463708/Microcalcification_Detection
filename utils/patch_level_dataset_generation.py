@@ -18,23 +18,33 @@ def crop_patches_and_labels(image_path, label_path, patch_size, stride):
     image_patch_list = list()
     label_patch_list = list()
 
-    for row_stride_idx in range(height // stride):
-        # start and end row index for cropping this patch
-        start_row_idx = stride * row_stride_idx
-        end_row_idx = start_row_idx + patch_size[0]
-        if end_row_idx > height - 1:
-            gap = end_row_idx - (height - 1)
-            end_row_idx -= gap
-            start_row_idx -= gap
+    start_row_idx = -1
+    end_row_idx = -1
+    while end_row_idx < height:
+        if start_row_idx == -1:
+            start_row_idx = 0
+            end_row_idx = start_row_idx + patch_size[0]
+        else:
+            start_row_idx += stride
+            end_row_idx += stride
+        if end_row_idx > height:
+            gap_row = end_row_idx - height
+            end_row_idx -= gap_row
+            start_row_idx -= gap_row
 
-        for column_stride_idx in range(width // stride):
-            # start and end column index for cropping this patch
-            start_column_idx = stride * column_stride_idx
-            end_column_idx = start_column_idx + patch_size[1]
-            if end_column_idx > width - 1:
-                gap = end_column_idx - (width - 1)
-                end_column_idx -= gap
-                start_column_idx -= gap
+        start_column_idx = -1
+        end_column_idx = -1
+        while end_column_idx < width:
+            if start_column_idx == -1:
+                start_column_idx = 0
+                end_column_idx = start_column_idx + patch_size[1]
+            else:
+                start_column_idx += stride
+                end_column_idx += stride
+            if end_column_idx > width:
+                gap_column = end_column_idx - width
+                end_column_idx -= gap_column
+                start_column_idx -= gap_column
 
             # debug only
             # print(
