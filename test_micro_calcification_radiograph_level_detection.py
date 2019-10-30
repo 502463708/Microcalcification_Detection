@@ -19,7 +19,7 @@ from skimage import measure
 from torch.utils.data import DataLoader
 from time import time
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '5'
 cudnn.benchmark = True
 
 
@@ -86,7 +86,7 @@ def ParseArguments():
 def generate_radiograph_level_reconstructed_and_residue_result(images_tensor, reconstruction_net,
                                                                pixel_level_labels_tensor,
                                                                patch_size, stride):
-    if images_tensor.device() == 'cpu':
+    if images_tensor.device.type == 'cpu':
         images_tensor = images_tensor.cuda()
 
     assert stride > 0, 'The variable stride must be a positive integer.'
@@ -98,7 +98,8 @@ def generate_radiograph_level_reconstructed_and_residue_result(images_tensor, re
     residue_radiograph = np.zeros((height, width))
     counting_mask = np.zeros((height, width))
 
-    mask_radiograph = pixel_level_labels_tensor.cpu().numpy().suqeeze()
+    mask_radiograph = pixel_level_labels_tensor.cpu().numpy()
+    mask_radiograph = mask_radiograph.squeeze()
 
     start_row_idx = -1
     end_row_idx = -1
@@ -127,6 +128,15 @@ def generate_radiograph_level_reconstructed_and_residue_result(images_tensor, re
                 gap_column = end_column_idx - width
                 end_column_idx -= gap_column
                 start_column_idx -= gap_column
+
+            # debug only
+            # print(
+            #     'row idx range: {} - {} (height = {}), column idx range: {} - {} (width = {})'.format(start_row_idx,
+            #                                                                                           end_row_idx,
+            #                                                                                           height,
+            #                                                                                           start_column_idx,
+            #                                                                                           end_column_idx,
+            #                                                                                           width))
 
             # generate the current patch label
             patch_label_np = mask_radiograph[start_row_idx:end_row_idx, start_column_idx:end_column_idx]
@@ -204,19 +214,21 @@ def generate_micro_calcification_score_list(images_tensor, classification_net, r
             centroid_row_idx = prop.centroid[0]
             centroid_column_idx = prop.centroid[1]
 
-            centroid_row_idx = np.clip(centroid_row_idx, patch_size[0], height - patch_size[0])
-            centroid_column_idx = np.clip(centroid_column_idx, patch_size[1], width - patch_size[1])
+            centroid_row_idx = np.clip(centroid_row_idx, patch_size[0] / 2, height - patch_size[0] / 2)
+            centroid_column_idx = np.clip(centroid_column_idx, patch_size[1] / 2, width - patch_size[1] / 2)
 
-            start_row_idx = centroid_row_idx - patch_size[0]
-            end_row_idx = centroid_row_idx + patch_size[0]
-            start_column_idx = centroid_column_idx - patch_size[1]
-            end_column_idx = centroid_column_idx + patch_size[1]
+            start_row_idx = int(centroid_row_idx - patch_size[0] / 2)
+            end_row_idx = int(centroid_row_idx + patch_size[0] / 2)
+            start_column_idx = int(centroid_column_idx - patch_size[1] / 2)
+            end_column_idx = int(centroid_column_idx + patch_size[1] / 2)
 
             # crop this patch for model inference
             patch_image_tensor = images_tensor[:, :, start_row_idx:end_row_idx, start_column_idx:end_column_idx]
 
             # generate the positive class prediction probability
             classification_preds_tensor = classification_net(patch_image_tensor)
+            classification_preds_tensor = torch.softmax(classification_preds_tensor, dim=1)
+
             positive_prob = classification_preds_tensor.cpu().detach().numpy().squeeze()[1]
 
             # generate the mean value of this connected component on the residue
@@ -228,7 +240,7 @@ def generate_micro_calcification_score_list(images_tensor, classification_net, r
 
 
 def label_2_coord_list(pixel_level_labels_tensor):
-    if pixel_level_labels_tensor.device() != 'cpu':
+    if pixel_level_labels_tensor.device.type != 'cpu':
         pixel_level_labels_tensor = pixel_level_labels_tensor.cpu()
 
     # remain micro calcifications and normal tissue label only
@@ -341,6 +353,12 @@ def TestMicroCalcificationRadiographLevelDetection(args):
     for radiograph_idx, (
             images_tensor, pixel_level_labels_tensor, radiograph_level_labels_tensor, filenames) in enumerate(
         data_loader):
+        # logging
+        logger.write_and_print('--------------------------------------------------------------------------------------')
+        logger.write_and_print(
+            'Start evaluating radiograph {} out of {}: {}...'.format(radiograph_idx + 1, dataset.__len__(),
+                                                                     filenames[0]))
+
         # start time of this radiograph
         start_time_for_radiograph = time()
 
@@ -366,9 +384,9 @@ def TestMicroCalcificationRadiographLevelDetection(args):
                                                                                        label_coord_list)
 
         # print logging information of this radiograph
-        logger.write_and_print('--------------------------------------------------------------------------------------')
         logger.write_and_print(
-            'Radiograph: {}, consuming time: {:.4f}s'.format(radiograph_idx, time() - start_time_for_radiograph))
+            'Finished evaluating radiograph: {}, consuming time: {:.4f}s'.format(radiograph_idx,
+                                                                                 time() - start_time_for_radiograph))
         detection_result_record_radiograph_level.print(logger)
         logger.write_and_print('--------------------------------------------------------------------------------------')
 
