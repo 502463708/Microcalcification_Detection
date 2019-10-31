@@ -1,4 +1,5 @@
 import argparse
+import copy
 import cv2
 import numpy as np
 import os
@@ -244,7 +245,7 @@ def label_2_coord_list(pixel_level_labels_tensor):
         pixel_level_labels_tensor = pixel_level_labels_tensor.cpu()
 
     # remain micro calcifications and normal tissue label only
-    pixel_level_label_np = pixel_level_labels_tensor.numpy().squeeze()
+    pixel_level_label_np = copy.copy(pixel_level_labels_tensor.numpy().squeeze())
     pixel_level_label_np[pixel_level_label_np > 1] = 0
 
     label_connected_components = measure.label(pixel_level_label_np, connectivity=2)
@@ -277,8 +278,12 @@ def save_tensor_in_png_and_nii_format(images_tensor, pixel_level_labels_tensor, 
     sitk.WriteImage(stacked_image, os.path.join(prediction_saving_dir, filename.replace('png', 'nii')))
 
     image_np *= 255
-    pixel_level_label_np *= 255
     residue_radiograph_np *= 255
+
+    # process pixel-level label                            # normal tissue: 0 (.png) <- 0 (tensor)
+    pixel_level_label_np[pixel_level_label_np == 1] = 255  # micro calcification: 255 (.png) <- 1 (tensor)
+    pixel_level_label_np[pixel_level_label_np == 2] = 165  # other lesion: 165 (.png) <- 2 (tensor)
+    pixel_level_label_np[pixel_level_label_np == 3] = 85  # background: 85 (.png) <- 3 (tensor)
 
     image_np = image_np.astype(np.uint8)
     pixel_level_label_np = pixel_level_label_np.astype(np.uint8)
