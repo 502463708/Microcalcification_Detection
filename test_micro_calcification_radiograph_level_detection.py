@@ -68,7 +68,7 @@ def ParseArguments():
                         help='residue[residue <= prob_threshold] = 0; residue[residue > prob_threshold] = 1')
     parser.add_argument('--area_threshold',
                         type=float,
-                        default=3.14 * 7 * 7 / 2,
+                        default=3.14 * 7 * 7 * 0.8,
                         help='Connected components whose area < area_threshold will be discarded.')
     parser.add_argument('--score_threshold_stride',
                         type=float,
@@ -85,8 +85,7 @@ def ParseArguments():
 
 
 def generate_radiograph_level_reconstructed_and_residue_result(images_tensor, reconstruction_net,
-                                                               pixel_level_labels_tensor,
-                                                               patch_size, stride):
+                                                               pixel_level_label_np, patch_size, stride):
     if images_tensor.device.type == 'cpu':
         images_tensor = images_tensor.cuda()
 
@@ -98,9 +97,6 @@ def generate_radiograph_level_reconstructed_and_residue_result(images_tensor, re
     reconstructed_radiograph = np.zeros((height, width))
     residue_radiograph = np.zeros((height, width))
     counting_mask = np.zeros((height, width))
-
-    mask_radiograph = pixel_level_labels_tensor.cpu().numpy()
-    mask_radiograph = mask_radiograph.squeeze()
 
     start_row_idx = -1
     end_row_idx = -1
@@ -140,7 +136,7 @@ def generate_radiograph_level_reconstructed_and_residue_result(images_tensor, re
             #                                                                                           width))
 
             # generate the current patch label
-            patch_label_np = mask_radiograph[start_row_idx:end_row_idx, start_column_idx:end_column_idx]
+            patch_label_np = pixel_level_label_np[start_row_idx:end_row_idx, start_column_idx:end_column_idx]
 
             # this patch is totally occupied with outlier calcification -> skip
             if np.where(patch_label_np == 2)[0].shape[0] == patch_label_np.size:
@@ -184,20 +180,48 @@ def generate_radiograph_level_reconstructed_and_residue_result(images_tensor, re
             counting_mask_patch += 1
             counting_mask[start_row_idx:end_row_idx, start_column_idx:end_column_idx] = counting_mask_patch
 
-    reconstructed_radiograph[mask_radiograph == 2] = 0
-    residue_radiograph[mask_radiograph == 3] = 0
-
     assert reconstructed_radiograph.shape == residue_radiograph.shape
 
     return reconstructed_radiograph, residue_radiograph
 
 
-def generate_micro_calcification_score_list(images_tensor, classification_net, residue_radiograph_np, patch_size,
-                                            prob_threshold, area_threshold):
+def post_process_residue_radiograph(residue_radiograph_np, pixel_level_label_np, prob_threshold, area_threshold):
+    assert residue_radiograph_np.shape == pixel_level_label_np.shape
+
+    # created for labelling connected components
+    residue_mask_radiograph_np = np.zeros_like(residue_radiograph_np)
+
+    # created for saving the post processed residue
+    processed_residue_radiograph_np = copy.copy(residue_radiograph_np)
+
+    processed_residue_radiograph_np[processed_residue_radiograph_np < prob_threshold] = 0
+    residue_mask_radiograph_np[processed_residue_radiograph_np >= prob_threshold] = 1
+
+    connected_components = measure.label(residue_mask_radiograph_np)
+    props = measure.regionprops(connected_components, coordinates='rc')
+
+    connected_idx = 0
+    for prop in props:
+        connected_idx += 1
+        indexes = connected_components == connected_idx
+        # remove the detected results with area smaller than area_threshold
+        if prop.area < area_threshold:
+            processed_residue_radiograph_np[indexes] = 0
+        # remove the detected results overlapped with background or other lesion
+        if pixel_level_label_np[indexes].max() > 1:
+            processed_residue_radiograph_np[indexes] = 0
+
+    processed_residue_radiograph_np[pixel_level_label_np == 2] = 0
+    processed_residue_radiograph_np[pixel_level_label_np == 3] = 0
+
+    return processed_residue_radiograph_np
+
+
+def generate_micro_calcification_score_list(images_tensor, classification_net, residue_radiograph_np, patch_size):
     height, width = residue_radiograph_np.shape
 
     masked_residue_np = np.zeros_like(residue_radiograph_np)
-    masked_residue_np[residue_radiograph_np > prob_threshold] = 1
+    masked_residue_np[residue_radiograph_np > 0] = 1
 
     connected_components = measure.label(masked_residue_np)
     props = measure.regionprops(connected_components, coordinates='rc')
@@ -205,50 +229,48 @@ def generate_micro_calcification_score_list(images_tensor, classification_net, r
     micro_calcification_coordinate_list = list()
     micro_calcification_score_list = list()
 
+    connected_idx = 0
     for prop in props:
-        if prop.area < area_threshold:
-            residue_radiograph_np[prop._label_image == 1] = 0
-            continue
-        else:
-            micro_calcification_coordinate_list.append(prop.centroid)
+        connected_idx += 1
+        indexes = connected_components == connected_idx
 
-            centroid_row_idx = prop.centroid[0]
-            centroid_column_idx = prop.centroid[1]
+        micro_calcification_coordinate_list.append(prop.centroid)
 
-            centroid_row_idx = np.clip(centroid_row_idx, patch_size[0] / 2, height - patch_size[0] / 2)
-            centroid_column_idx = np.clip(centroid_column_idx, patch_size[1] / 2, width - patch_size[1] / 2)
+        centroid_row_idx = prop.centroid[0]
+        centroid_column_idx = prop.centroid[1]
 
-            start_row_idx = int(centroid_row_idx - patch_size[0] / 2)
-            end_row_idx = int(centroid_row_idx + patch_size[0] / 2)
-            start_column_idx = int(centroid_column_idx - patch_size[1] / 2)
-            end_column_idx = int(centroid_column_idx + patch_size[1] / 2)
+        centroid_row_idx = np.clip(centroid_row_idx, patch_size[0] / 2, height - patch_size[0] / 2)
+        centroid_column_idx = np.clip(centroid_column_idx, patch_size[1] / 2, width - patch_size[1] / 2)
 
-            # crop this patch for model inference
-            patch_image_tensor = images_tensor[:, :, start_row_idx:end_row_idx, start_column_idx:end_column_idx]
+        start_row_idx = int(centroid_row_idx - patch_size[0] / 2)
+        end_row_idx = int(centroid_row_idx + patch_size[0] / 2)
+        start_column_idx = int(centroid_column_idx - patch_size[1] / 2)
+        end_column_idx = int(centroid_column_idx + patch_size[1] / 2)
 
-            # generate the positive class prediction probability
-            classification_preds_tensor = classification_net(patch_image_tensor)
-            classification_preds_tensor = torch.softmax(classification_preds_tensor, dim=1)
+        # crop this patch for model inference
+        patch_image_tensor = images_tensor[:, :, start_row_idx:end_row_idx, start_column_idx:end_column_idx]
 
-            positive_prob = classification_preds_tensor.cpu().detach().numpy().squeeze()[1]
+        # generate the positive class prediction probability
+        classification_preds_tensor = classification_net(patch_image_tensor)
+        classification_preds_tensor = torch.softmax(classification_preds_tensor, dim=1)
 
-            # generate the mean value of this connected component on the residue
-            residue_mean = (residue_radiograph_np[prop._label_image == 1]).mean()
+        positive_prob = classification_preds_tensor.cpu().detach().numpy().squeeze()[1]
 
-            micro_calcification_score_list.append(positive_prob * residue_mean)
+        # generate the mean value of this connected component on the residue
+        residue_mean = (residue_radiograph_np[indexes]).mean()
 
-    return micro_calcification_coordinate_list, micro_calcification_score_list, residue_radiograph_np
+        micro_calcification_score_list.append(positive_prob * residue_mean)
+
+    return micro_calcification_coordinate_list, micro_calcification_score_list
 
 
-def label_2_coord_list(pixel_level_labels_tensor):
-    if pixel_level_labels_tensor.device.type != 'cpu':
-        pixel_level_labels_tensor = pixel_level_labels_tensor.cpu()
+def label_2_coord_list(pixel_level_label_np):
+    mask_np = copy.copy(pixel_level_label_np)
 
     # remain micro calcifications and normal tissue label only
-    pixel_level_label_np = copy.copy(pixel_level_labels_tensor.numpy().squeeze())
-    pixel_level_label_np[pixel_level_label_np > 1] = 0
+    mask_np[mask_np > 1] = 0
 
-    label_connected_components = measure.label(pixel_level_label_np, connectivity=2)
+    label_connected_components = measure.label(mask_np, connectivity=2)
     label_props = measure.regionprops(label_connected_components)
 
     label_coord_list = list()
@@ -260,18 +282,19 @@ def label_2_coord_list(pixel_level_labels_tensor):
     return label_coord_list
 
 
-def save_tensor_in_png_and_nii_format(images_tensor, pixel_level_labels_tensor, residue_radiograph_np, filenames,
-                                      prediction_saving_dir):
+def save_tensor_in_png_and_nii_format(images_tensor, pixel_level_label_np, residue_radiograph_np,
+                                      processed_residue_radiograph_np, filenames, prediction_saving_dir):
     # convert tensor into numpy and squeeze channel dimension
     image_np = images_tensor.cpu().detach().numpy().squeeze()
-    pixel_level_label_np = pixel_level_labels_tensor.numpy().squeeze()
 
-    assert image_np.shape == pixel_level_label_np.shape == residue_radiograph_np.shape
+    assert image_np.shape == pixel_level_label_np.shape == residue_radiograph_np.shape == \
+           processed_residue_radiograph_np.shape
 
     filename = filenames[0]
 
     stacked_np = np.concatenate((np.expand_dims(image_np, axis=0),
                                  np.expand_dims(pixel_level_label_np, axis=0),
+                                 np.expand_dims(processed_residue_radiograph_np, axis=0),
                                  np.expand_dims(residue_radiograph_np, axis=0)), axis=0)
 
     stacked_image = sitk.GetImageFromArray(stacked_np)
@@ -279,6 +302,7 @@ def save_tensor_in_png_and_nii_format(images_tensor, pixel_level_labels_tensor, 
 
     image_np *= 255
     residue_radiograph_np *= 255
+    processed_residue_radiograph_np *= 255
 
     # process pixel-level label                            # normal tissue: 0 (.png) <- 0 (tensor)
     pixel_level_label_np[pixel_level_label_np == 1] = 255  # micro calcification: 255 (.png) <- 1 (tensor)
@@ -288,13 +312,16 @@ def save_tensor_in_png_and_nii_format(images_tensor, pixel_level_labels_tensor, 
     image_np = image_np.astype(np.uint8)
     pixel_level_label_np = pixel_level_label_np.astype(np.uint8)
     residue_radiograph_np = residue_radiograph_np.astype(np.uint8)
+    processed_residue_radiograph_np = processed_residue_radiograph_np.astype(np.uint8)
 
     cv2.imwrite(os.path.join(prediction_saving_dir, filename.replace('.png', '_image.png')),
                 image_np)
     cv2.imwrite(os.path.join(prediction_saving_dir, filename.replace('.png', '_pixel_level_label.png')),
                 pixel_level_label_np)
-    cv2.imwrite(os.path.join(prediction_saving_dir, filename.replace('.png', '_post_processed_residue.png')),
+    cv2.imwrite(os.path.join(prediction_saving_dir, filename.replace('.png', '_raw_residue.png')),
                 residue_radiograph_np)
+    cv2.imwrite(os.path.join(prediction_saving_dir, filename.replace('.png', '_post_processed_residue.png')),
+                processed_residue_radiograph_np)
 
     return
 
@@ -370,20 +397,24 @@ def TestMicroCalcificationRadiographLevelDetection(args):
         # transfer the tensor into gpu device
         images_tensor = images_tensor.cuda()
 
+        # transfer the tensor into ndarray format
+        pixel_level_label_np = pixel_level_labels_tensor.cpu().numpy().squeeze()
+
         _, residue_radiograph_np = generate_radiograph_level_reconstructed_and_residue_result(images_tensor,
                                                                                               reconstruction_net,
-                                                                                              pixel_level_labels_tensor,
+                                                                                              pixel_level_label_np,
                                                                                               args.patch_size,
                                                                                               args.patch_stride)
 
-        pred_coord_list, pred_score_list, residue_radiograph_np = generate_micro_calcification_score_list(images_tensor,
-                                                                                                          classification_net,
-                                                                                                          residue_radiograph_np,
-                                                                                                          args.patch_size,
-                                                                                                          args.prob_threshold,
-                                                                                                          args.area_threshold)
+        processed_residue_radiograph_np = post_process_residue_radiograph(residue_radiograph_np, pixel_level_label_np,
+                                                                          args.prob_threshold, args.area_threshold)
 
-        label_coord_list = label_2_coord_list(pixel_level_labels_tensor)
+        pred_coord_list, pred_score_list = generate_micro_calcification_score_list(images_tensor,
+                                                                                   classification_net,
+                                                                                   processed_residue_radiograph_np,
+                                                                                   args.patch_size)
+
+        label_coord_list = label_2_coord_list(pixel_level_label_np)
 
         detection_result_record_radiograph_level = metrics.metric_all_score_thresholds(pred_coord_list, pred_score_list,
                                                                                        label_coord_list)
@@ -395,8 +426,8 @@ def TestMicroCalcificationRadiographLevelDetection(args):
         detection_result_record_radiograph_level.print(logger)
         logger.write_and_print('--------------------------------------------------------------------------------------')
 
-        save_tensor_in_png_and_nii_format(images_tensor, pixel_level_labels_tensor, residue_radiograph_np, filenames,
-                                          visualization_saving_dir)
+        save_tensor_in_png_and_nii_format(images_tensor, pixel_level_label_np, residue_radiograph_np,
+                                          processed_residue_radiograph_np, filenames, visualization_saving_dir)
 
         logger.flush()
 

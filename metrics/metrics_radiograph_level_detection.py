@@ -62,11 +62,11 @@ class DetectionResultRecord(object):
             score_threshold = 0
             threshold_idx = 0
             while score_threshold <= 1:
-                print('score_threshold = {}, recall_number = {}, FP_number = {}'.format(score_threshold,
-                                                                                        self.recall_num_dataset_level_np[
-                                                                                            threshold_idx],
-                                                                                        self.FP_num_dataset_level_np[
-                                                                                            threshold_idx]))
+                print('score_threshold = {:.4f}, recall_number = {}, FP_number = {}'.format(score_threshold,
+                                                                                            self.recall_num_dataset_level_np[
+                                                                                                threshold_idx],
+                                                                                            self.FP_num_dataset_level_np[
+                                                                                                threshold_idx]))
 
                 score_threshold += self.score_threshold_stride
                 threshold_idx += 1
@@ -79,11 +79,11 @@ class DetectionResultRecord(object):
             threshold_idx = 0
             while score_threshold <= 1:
                 logger.write_and_print(
-                    'score_threshold = {}, recall_number = {}, FP_number = {}'.format(score_threshold,
-                                                                                      self.recall_num_dataset_level_np[
-                                                                                          threshold_idx],
-                                                                                      self.FP_num_dataset_level_np[
-                                                                                          threshold_idx]))
+                    'score_threshold = {:.4f}, recall_number = {}, FP_number = {}'.format(score_threshold,
+                                                                                          self.recall_num_dataset_level_np[
+                                                                                              threshold_idx],
+                                                                                          self.FP_num_dataset_level_np[
+                                                                                              threshold_idx]))
 
                 score_threshold += self.score_threshold_stride
                 threshold_idx += 1
