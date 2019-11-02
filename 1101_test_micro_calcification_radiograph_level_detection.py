@@ -20,7 +20,7 @@ from skimage import measure
 from torch.utils.data import DataLoader
 from time import time
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '5'
+os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 cudnn.benchmark = True
 
 
@@ -226,10 +226,10 @@ def post_process_residue_radiograph(residue_radiograph_np, pixel_level_label_np,
 
 def generate_micro_calcification_score_list(images_tensor, classification_net, pixel_level_label_np, residue_radiograph_np,
                                             processed_residue_radiograph_np, filenames, prediction_saving_dir, patch_size):
-    height, width = residue_radiograph_np.shape
+    height, width = processed_residue_radiograph_np.shape
 
-    masked_residue_np = np.zeros_like(residue_radiograph_np)
-    masked_residue_np[residue_radiograph_np > 0] = 1
+    masked_residue_np = np.zeros_like(processed_residue_radiograph_np)
+    masked_residue_np[processed_residue_radiograph_np > 0] = 1
 
     connected_components = measure.label(masked_residue_np)
     props = measure.regionprops(connected_components, coordinates='rc')
@@ -238,8 +238,14 @@ def generate_micro_calcification_score_list(images_tensor, classification_net, p
     micro_calcification_score_list = list()
 
     connected_idx = 0
+    # print("props length", len(props))
+    # print(connected_components)
+    # print("percentage:", np.where(connected_components == 1)
+    #       [0].shape[0] / connected_components.size)
+
     for prop in props:
         connected_idx += 1
+        # print("index!", connected_idx)
         indexes = connected_components == connected_idx
 
         micro_calcification_coordinate_list.append(prop.centroid)
@@ -256,21 +262,41 @@ def generate_micro_calcification_score_list(images_tensor, classification_net, p
         end_row_idx = int(centroid_row_idx + patch_size[0] / 2)
         start_column_idx = int(centroid_column_idx - patch_size[1] / 2)
         end_column_idx = int(centroid_column_idx + patch_size[1] / 2)
+        # print("image tensor Size: ", images_tensor.size())
+        # print("pixel level numpy Size: ", pixel_level_label_np.shape)
+        # print("FileName", filenames[0])
 
         # crop this patch for model inference
 
         # convert numpy
         patch_image_tensor = images_tensor[:, :,
                                            start_row_idx:end_row_idx, start_column_idx:end_column_idx]
-        patch_pixel_level_label_np = pixel_level_label_np[:, :,
-                                                          start_row_idx:end_row_idx, start_column_idx:end_column_idx]
-        patch_residue_radiograph_np = residue_radiograph_np[:, :,
-                                                            start_row_idx:end_row_idx, start_column_idx:end_column_idx]
-        patch_processed_residue_radiograph_np = processed_residue_radiograph_np[:, :,
-                                                                                start_row_idx:end_row_idx, start_column_idx:end_column_idx]
+        # print("tensor size", patch_image_tensor.size())
+
+        patch_pixel_level_label_np = pixel_level_label_np[start_row_idx:end_row_idx,
+                                                          start_column_idx:end_column_idx]
+        # print("numpy size", patch_pixel_level_label_np.shape)
+        patch_residue_radiograph_np = residue_radiograph_np[start_row_idx:end_row_idx,
+                                                            start_column_idx:end_column_idx]
+        patch_processed_residue_radiograph_np = processed_residue_radiograph_np[
+            start_row_idx:end_row_idx, start_column_idx:end_column_idx]
 
         # 裁剪
-        patch_image_np = patch_image_tensor.cpu().detacg().numpy().squeeze()[1]
+        patch_image_np = patch_image_tensor.cpu().detach().numpy().squeeze()
+
+        patch_image_np *= 255
+        patch_residue_radiograph_np *= 255
+        patch_processed_residue_radiograph_np *= 255
+
+        patch_pixel_level_label_np[patch_pixel_level_label_np == 1] = 255
+        patch_pixel_level_label_np[patch_pixel_level_label_np == 2] = 165
+        patch_pixel_level_label_np[patch_pixel_level_label_np == 3] = 85
+
+        patch_image_np = patch_image_np.astype(np.uint8)
+        patch_residue_radiograph_np = patch_residue_radiograph_np.astype(
+            np.uint8)
+        patch_processed_residue_radiograph_np = patch_processed_residue_radiograph_np.astype(
+            np.uint8)
 
         # generate the positive class prediction probability
         classification_preds_tensor = classification_net(patch_image_tensor)
@@ -281,28 +307,61 @@ def generate_micro_calcification_score_list(images_tensor, classification_net, p
             1]
 
         # generate the mean value of this connected component on the residue
-        residue_mean = (residue_radiograph_np[indexes]).mean()
+        residue_mean = (processed_residue_radiograph_np[indexes]).mean()
 
         micro_calcification_score_list.append(positive_prob * residue_mean)
 
-    patchDir = "/home/groupprofzli/data1/dwz/results/micro_calcification_radiograph_level_detection_results_1101_patch/"
-    # Add code to batch
-    # Write batch content
-    filename = filenames[0]
+        patchDir = "/home/groupprofzli/data1/dwz/results/micro_calcification_radiograph_level_detection_results_1101_patch/"
+        image_Number = filenames[0][:-4]
 
-    cv2.imwrite(os.path.join(patchDir, filename.replace('.png', 'batch_image.png')),
-                patch_image_np)
+        patchFolderDir = os.path.join(patchDir, image_Number)
+        if not os.path.exists(patchFolderDir):
+            os.mkdir(patchFolderDir)
+        patchDir = os.path.join(patchDir, image_Number)
 
-    cv2.imwrite(os.path.join(patchDir, filename.replace('.png', 'batch_pixel_level_label.png')),
-                patch_pixel_level_label_np)
+        filename = filenames[0]
+        rootName = patchDir + '_'+str(connected_idx)+image_Number
 
-    cv2.imwrite(os.path.join(patchDir, filename.replace('.png', 'batch_raw_residue.png')),
-                patch_residue_radiograph_np)
+        cv2.imwrite(os.path.join(rootName+'_patch_image.png'),
+                    patch_image_np)
 
-    cv2.imwrite(os.path.join(patchDir, filename.replace('.png', 'batch_post_processed_residue.png')),
-                patch_processed_residue_radiograph_np)
+        cv2.imwrite(os.path.join(rootName+'_patch_pixel_level_label.png'),
+                    patch_pixel_level_label_np)
 
-    # img = np.zeros((1000, 500, 3), np.uint8)
+        cv2.imwrite(os.path.join(rootName+'_patch_raw_residue.png'),
+                    patch_residue_radiograph_np)
+
+        cv2.imwrite(os.path.join(rootName+'_patch_post_processed_residue.png'),
+                    patch_processed_residue_radiograph_np)
+
+        stacked_np = np.concatenate((np.expand_dims(patch_image_np, axis=0),
+                                     np.expand_dims(
+                                         patch_pixel_level_label_np, axis=0),
+                                     np.expand_dims(
+                                         patch_residue_radiograph_np, axis=0),
+                                     np.expand_dims(
+                                         patch_processed_residue_radiograph_np, axis=0)), axis=0)
+
+        stacked_image = sitk.GetImageFromArray(stacked_np)
+        sitk.WriteImage(stacked_image, os.path.join(
+            patchDir, str(connected_idx)+'_'+filename.replace('.png', str(connected_idx)+'_.nii')))
+
+        probImage = np.zeros((1000, 500, 3), np.uint8)
+        meanImage = np.zeros((1000, 500, 3), np.uint8)
+        scoreImage = np.zeros((1000, 500, 3), np.uint8)
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        cv2.putText(probImage, str(positive_prob), (0, 100),
+                    font, 2, (255, 255, 255), 7)
+        cv2.imwrite(os.path.join(patchDir, str(connected_idx)+'_'+filename.replace(
+            '.png', '_prob.png')), probImage)
+        cv2.putText(meanImage, str(residue_mean),
+                    (0, 100), font, 2, (255, 255, 255), 7)
+        cv2.imwrite(os.path.join(patchDir, str(connected_idx)+'_'+filename.replace(
+            '.png', '_mean.png')), meanImage)
+        cv2.putText(scoreImage, str(positive_prob * residue_mean),
+                    (0, 100), font, 2, (255, 255, 255), 7)
+        cv2.imwrite(os.path.join(patchDir, str(connected_idx)+'_'+filename.replace(
+            '.png', '_score.png')), scoreImage)
 
     return micro_calcification_coordinate_list, micro_calcification_score_list
 
@@ -321,7 +380,9 @@ def label_2_coord_list(pixel_level_label_np):
     if label_num > 0:
         for idx in range(label_num):
             label_coord_list.append(np.array(label_props[idx].centroid))
-
+            print(type(np.array(label_props[idx].centroid)))
+            print("LABEL!!!", np.array(label_props[idx].centroid))
+    quit()
     return label_coord_list
 
 
@@ -338,8 +399,8 @@ def save_tensor_in_png_and_nii_format(images_tensor, pixel_level_label_np, resid
     stacked_np = np.concatenate((np.expand_dims(image_np, axis=0),
                                  np.expand_dims(pixel_level_label_np, axis=0),
                                  np.expand_dims(
-                                     processed_residue_radiograph_np, axis=0),
-                                 np.expand_dims(residue_radiograph_np, axis=0)), axis=0)
+        processed_residue_radiograph_np, axis=0),
+        np.expand_dims(residue_radiograph_np, axis=0)), axis=0)
 
     stacked_image = sitk.GetImageFromArray(stacked_np)
     sitk.WriteImage(stacked_image, os.path.join(
