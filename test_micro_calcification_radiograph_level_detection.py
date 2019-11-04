@@ -186,7 +186,7 @@ def generate_radiograph_level_reconstructed_and_residue_result(images_tensor, re
 
 
 def post_process_residue_radiograph(raw_residue_radiograph_np, pixel_level_label_np, prob_threshold, area_threshold,
-                                    remove_overlapped_connected_component=False):
+                                    remove_overlapped_connected_component=True):
     assert raw_residue_radiograph_np.shape == pixel_level_label_np.shape
 
     # created for labelling connected components
