@@ -83,8 +83,38 @@ def generate_label_from_image(src_data_root_dir, dst_data_root_dir, image_filena
     return
 
 
+def get_min_distance(mask, coordinate):
+    # mask must be a binary mask
+    assert np.where(mask == 0)[0].shape[0] + np.where(mask == 1)[0].shape[0] == mask.size
+
+    # coordinate must be a ndarray
+    assert isinstance(coordinate, np.ndarray) or isinstance(coordinate, tuple)
+
+    if isinstance(coordinate, tuple):
+        coordinate = np.array(coordinate)
+
+    min_distance = None
+
+    # calculate the minimum distance between coordinate and the pixels marked 1 on mask
+    if np.where(mask == 1)[0].shape[0] > 0:
+        # generate two matrix for row and column indexes respectively
+        idx_indicated_matrix = np.indices(mask.shape)
+        row_idx_indicated_matrix = idx_indicated_matrix[0]
+        column_idx_indicated_matrix = idx_indicated_matrix[1]
+
+        # generate distance matrix
+        distance_matrix = np.sqrt(
+            np.square(row_idx_indicated_matrix - coordinate[0]) + np.square(
+                column_idx_indicated_matrix - coordinate[1]))
+
+        # get the min distance
+        min_distance = distance_matrix[mask == 1].min()
+
+    return min_distance
+
+
 def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename, logger=None,
-                            diameter_threshold=14):
+                            diameter_threshold=14, distance_threshold=112):
     absolute_src_image_path = os.path.join(src_data_root_dir, 'images', image_filename)
     xml_filename = image_filename.replace('png', 'xml')
     absolute_src_xml_path = os.path.join(src_data_root_dir, 'xml_annotations', xml_filename)
@@ -151,27 +181,47 @@ def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename
     calcification_connected_component_props = measure.regionprops(calcification_connected_components, coordinates='rc')
 
     for prop in calcification_connected_component_props:
-        # a large calcification is considered as an outlier calcification
+        # a large calcification is gonna be picked up as an outlier calcification
         if prop.major_axis_length >= diameter_threshold:
             outlier_calcification_count_image_level += 1
             coordinates = prop.coords
             for coordinate in coordinates:
                 row_idx = coordinate[0]
                 column_idx = coordinate[1]
-                label_np[row_idx][column_idx] = 165
+                calcification_mask_np[row_idx][column_idx] = 0
+                other_lesion_mask_np[row_idx][column_idx] = 1
 
         # a tiny calcification is considered as a qualified calcification
         else:
             qualified_calcification_count_image_level += 1
-            coordinates = prop.coords
-            for coordinate in coordinates:
-                row_idx = coordinate[0]
-                column_idx = coordinate[1]
-                label_np[row_idx][column_idx] = 255
 
-    # saving label
+    # a micro calcification which is near by the other lesion area is gonna be picked up as an outlier calcification
+    if other_lesion_mask_np.max() > 0:
+        # analyse the connected components for calcification_mask_np
+        calcification_connected_components = measure.label(input=calcification_mask_np, connectivity=2)
+        calcification_connected_component_props = measure.regionprops(calcification_connected_components,
+                                                                      coordinates='rc')
+
+        for prop in calcification_connected_component_props:
+            min_distance = get_min_distance(other_lesion_mask_np, prop.centroid)
+            # a micro calcification which is near by the other lesion
+            # area is gonna be picked up as an outlier calcification
+            if min_distance < distance_threshold:
+                qualified_calcification_count_image_level -= 1
+                outlier_calcification_count_image_level += 1
+                coordinates = prop.coords
+                for coordinate in coordinates:
+                    row_idx = coordinate[0]
+                    column_idx = coordinate[1]
+                    calcification_mask_np[row_idx][column_idx] = 0
+                    other_lesion_mask_np[row_idx][column_idx] = 1
+
+    # generate the final label
+    label_np[calcification_mask_np == 1] = 255
     label_np[other_lesion_mask_np == 1] = 165
     label_np[background_mask_np == 1] = 85
+
+    # saving label
     cv2.imwrite(absolute_dst_label_path, label_np)
 
     # saving stacked data for the debug purpose
@@ -195,7 +245,7 @@ def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename
 
 
 def image_with_xml2image_with_mask(src_data_root_dir, dst_data_root_dir, image_filename, diameter_threshold,
-                                   logger=None):
+                                   distance_threshold, logger=None):
     absolute_src_image_path = os.path.join(src_data_root_dir, 'images', image_filename)
     xml_filename = image_filename.replace('png', 'xml')
     absolute_src_xml_path = os.path.join(src_data_root_dir, 'xml_annotations', xml_filename)
@@ -227,19 +277,13 @@ def image_with_xml2image_with_mask(src_data_root_dir, dst_data_root_dir, image_f
         else:
             logger.write_and_print('This image has xml annotation.')
 
-        if diameter_threshold == -1:
-            qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
-            other_lesion_count_image_level = generate_label_from_xml(src_data_root_dir,
-                                                                     dst_data_root_dir,
-                                                                     image_filename,
-                                                                     logger)
-        else:
-            qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
-            other_lesion_count_image_level = generate_label_from_xml(src_data_root_dir,
-                                                                     dst_data_root_dir,
-                                                                     image_filename,
-                                                                     logger,
-                                                                     diameter_threshold)
+        qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
+        other_lesion_count_image_level = generate_label_from_xml(src_data_root_dir,
+                                                                 dst_data_root_dir,
+                                                                 image_filename,
+                                                                 logger,
+                                                                 diameter_threshold,
+                                                                 distance_threshold)
 
     return qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
            other_lesion_count_image_level

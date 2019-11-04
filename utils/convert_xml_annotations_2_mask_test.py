@@ -18,9 +18,12 @@ def ParseArguments():
                         help='Destination data root dir.')
     parser.add_argument('--diameter_threshold',
                         type=float,
-                        default=-1,
-                        help='The calcifications whose diameter >= diameter_threshold will be discarded,'
-                             '-1 -> the default diameter_threshold = 14.')
+                        default=14,
+                        help='The calcifications whose diameter >= diameter_threshold will be discarded.')
+    parser.add_argument('--distance_threshold',
+                        type=int,
+                        default=112,
+                        help='The distance_threshold for picking up micro calcifications nearby the other lesion area.')
 
     args = parser.parse_args()
 
@@ -70,6 +73,7 @@ def TestConvertXml2Mask(args):
                                                                         args.dst_data_root_dir,
                                                                         image_filename,
                                                                         args.diameter_threshold,
+                                                                        args.distance_threshold,
                                                                         logger=logger)
 
         qualified_calcification_count_dataset_level += qualified_calcification_count_image_level
