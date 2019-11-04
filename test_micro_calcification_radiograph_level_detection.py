@@ -185,7 +185,8 @@ def generate_radiograph_level_reconstructed_and_residue_result(images_tensor, re
     return reconstructed_radiograph, residue_radiograph
 
 
-def post_process_residue_radiograph(raw_residue_radiograph_np, pixel_level_label_np, prob_threshold, area_threshold):
+def post_process_residue_radiograph(raw_residue_radiograph_np, pixel_level_label_np, prob_threshold, area_threshold,
+                                    remove_overlapped_connected_component=False):
     assert raw_residue_radiograph_np.shape == pixel_level_label_np.shape
 
     # created for labelling connected components
@@ -194,12 +195,15 @@ def post_process_residue_radiograph(raw_residue_radiograph_np, pixel_level_label
     # created for saving the post processed residue
     processed_residue_radiograph_np = copy.copy(raw_residue_radiograph_np)
 
+    # only pixels with residue value >= prob_threshold can be remained
     processed_residue_radiograph_np[processed_residue_radiograph_np < prob_threshold] = 0
-    residue_mask_radiograph_np[processed_residue_radiograph_np >= prob_threshold] = 1
 
+    # generate information for each connected component on processed_residue_radiograph_np
+    residue_mask_radiograph_np[processed_residue_radiograph_np > 0] = 1
     connected_components = measure.label(residue_mask_radiograph_np)
     props = measure.regionprops(connected_components, coordinates='rc')
 
+    # iterate each connected component
     connected_idx = 0
     for prop in props:
         connected_idx += 1
@@ -207,9 +211,10 @@ def post_process_residue_radiograph(raw_residue_radiograph_np, pixel_level_label
         # remove the detected results with area smaller than area_threshold
         if prop.area < area_threshold:
             processed_residue_radiograph_np[indexes] = 0
-        # remove the detected results overlapped with background or other lesion
-        if pixel_level_label_np[indexes].max() > 1:
-            processed_residue_radiograph_np[indexes] = 0
+        if remove_overlapped_connected_component:
+            # remove the detected results overlapped with background or other lesion
+            if pixel_level_label_np[indexes].max() > 1:
+                processed_residue_radiograph_np[indexes] = 0
 
     processed_residue_radiograph_np[pixel_level_label_np == 2] = 0
     processed_residue_radiograph_np[pixel_level_label_np == 3] = 0
