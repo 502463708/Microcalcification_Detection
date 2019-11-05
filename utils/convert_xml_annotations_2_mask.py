@@ -137,8 +137,10 @@ def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename
     background_mask_np[image_np == 0] = 1
 
     # for statistical purpose
-    qualified_calcification_count_image_level = 0
-    outlier_calcification_count_image_level = 0
+    calcification_count_image_level = 0
+    large_calcification_count_image_level = 0
+    neighborhood_calcification_count_image_level = 0
+    micro_calcification_count_image_level = 0
     other_lesion_count_image_level = 0
 
     # generate calcification_mask_np and other_lesion_mask_np
@@ -151,6 +153,7 @@ def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename
 
         # for the calcification annotations
         if annotation.name in ['Calcification', 'Calcifications', 'Unnamed', 'Point 1', 'Point 3']:
+            calcification_count_image_level += 1
             # in case that only one pixel is annotated
             if len(row_indexes) == 0:
                 for coordinate in coordinate_list:
@@ -183,7 +186,7 @@ def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename
     for prop in calcification_connected_component_props:
         # a large calcification is gonna be picked up as an outlier calcification
         if prop.major_axis_length >= diameter_threshold:
-            outlier_calcification_count_image_level += 1
+            large_calcification_count_image_level += 1
             coordinates = prop.coords
             for coordinate in coordinates:
                 row_idx = coordinate[0]
@@ -193,7 +196,7 @@ def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename
 
         # a tiny calcification is considered as a qualified calcification
         else:
-            qualified_calcification_count_image_level += 1
+            micro_calcification_count_image_level += 1
 
     # a micro calcification which is near by the other lesion area is gonna be picked up as an outlier calcification
     if other_lesion_mask_np.max() > 0:
@@ -207,8 +210,8 @@ def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename
             # a micro calcification which is near by the other lesion
             # area is gonna be picked up as an outlier calcification
             if min_distance < distance_threshold:
-                qualified_calcification_count_image_level -= 1
-                outlier_calcification_count_image_level += 1
+                micro_calcification_count_image_level -= 1
+                neighborhood_calcification_count_image_level += 1
                 coordinates = prop.coords
                 for coordinate in coordinates:
                     row_idx = coordinate[0]
@@ -230,17 +233,26 @@ def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename
     sitk.WriteImage(stacked_image, absolute_dst_stacked_data_path)
 
     if logger is None:
-        print('This image contains {} qualified calcifications.'.format(qualified_calcification_count_image_level))
-        print('This image contains {} outlier calcifications.'.format(outlier_calcification_count_image_level))
-        print('This image contains {} other lesions.'.format(other_lesion_count_image_level))
+        print('  This image contains {} calcifications.'.format(calcification_count_image_level))
+        print('  This image contains {} large calcifications.'.format(large_calcification_count_image_level))
+        print(
+            '  This image contains {} neighborhood calcifications.'.format(
+                neighborhood_calcification_count_image_level))
+        print('  This image contains {} micro calcifications.'.format(micro_calcification_count_image_level))
+        print('  This image contains {} other lesions.'.format(other_lesion_count_image_level))
     else:
+        logger.write_and_print('  This image contains {} calcifications.'.format(calcification_count_image_level))
         logger.write_and_print(
-            'This image contains {} qualified calcifications.'.format(qualified_calcification_count_image_level))
+            '  This image contains {} large calcifications.'.format(large_calcification_count_image_level))
         logger.write_and_print(
-            'This image contains {} outlier calcifications.'.format(outlier_calcification_count_image_level))
-        logger.write_and_print('This image contains {} other lesions.'.format(other_lesion_count_image_level))
+            '  This image contains {} neighborhood calcifications.'.format(
+                neighborhood_calcification_count_image_level))
+        logger.write_and_print(
+            '  This image contains {} micro calcifications.'.format(micro_calcification_count_image_level))
+        logger.write_and_print('  This image contains {} other lesions.'.format(other_lesion_count_image_level))
 
-    return qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
+    return calcification_count_image_level, large_calcification_count_image_level, \
+           neighborhood_calcification_count_image_level, micro_calcification_count_image_level, \
            other_lesion_count_image_level
 
 
@@ -258,8 +270,10 @@ def image_with_xml2image_with_mask(src_data_root_dir, dst_data_root_dir, image_f
     shutil.copyfile(absolute_src_image_path, absolute_dst_image_path)
 
     # for statistical purpose
-    qualified_calcification_count_image_level = 0
-    outlier_calcification_count_image_level = 0
+    calcification_count_image_level = 0
+    large_calcification_count_image_level = 0
+    neighborhood_calcification_count_image_level = 0
+    micro_calcification_count_image_level = 0
     other_lesion_count_image_level = 0
 
     # if this image does not have its corresponding xml file -> generate a mask which is completely filled with 0
@@ -277,7 +291,8 @@ def image_with_xml2image_with_mask(src_data_root_dir, dst_data_root_dir, image_f
         else:
             logger.write_and_print('This image has xml annotation.')
 
-        qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
+        calcification_count_image_level, large_calcification_count_image_level, \
+        neighborhood_calcification_count_image_level, micro_calcification_count_image_level, \
         other_lesion_count_image_level = generate_label_from_xml(src_data_root_dir,
                                                                  dst_data_root_dir,
                                                                  image_filename,
@@ -285,5 +300,6 @@ def image_with_xml2image_with_mask(src_data_root_dir, dst_data_root_dir, image_f
                                                                  diameter_threshold,
                                                                  distance_threshold)
 
-    return qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
+    return calcification_count_image_level, large_calcification_count_image_level, \
+           neighborhood_calcification_count_image_level, micro_calcification_count_image_level, \
            other_lesion_count_image_level

@@ -22,7 +22,7 @@ def ParseArguments():
                         help='The calcifications whose diameter >= diameter_threshold will be discarded.')
     parser.add_argument('--distance_threshold',
                         type=int,
-                        default=112,
+                        default=21,
                         help='The distance_threshold for picking up micro calcifications nearby the other lesion area.')
 
     args = parser.parse_args()
@@ -57,8 +57,10 @@ def TestConvertXml2Mask(args):
     image_filename_list = os.listdir(src_image_dir)
 
     # for statistical purpose
-    qualified_calcification_count_dataset_level = 0
-    outlier_calcification_count_dataset_level = 0
+    calcification_count_dataset_level = 0
+    large_calcification_count_dataset_level = 0
+    neighborhood_calcification_count_dataset_level = 0
+    micro_calcification_count_dataset_level = 0
     other_lesion_count_dataset_level = 0
 
     current_idx = 0
@@ -68,7 +70,8 @@ def TestConvertXml2Mask(args):
         logger.write_and_print(
             'Processing {} out of {}, filename: {}'.format(current_idx, len(image_filename_list), image_filename))
 
-        qualified_calcification_count_image_level, outlier_calcification_count_image_level, \
+        calcification_count_image_level, large_calcification_count_image_level, \
+        neighborhood_calcification_count_image_level, micro_calcification_count_image_level, \
         other_lesion_count_image_level = image_with_xml2image_with_mask(args.src_data_root_dir,
                                                                         args.dst_data_root_dir,
                                                                         image_filename,
@@ -76,15 +79,20 @@ def TestConvertXml2Mask(args):
                                                                         args.distance_threshold,
                                                                         logger=logger)
 
-        qualified_calcification_count_dataset_level += qualified_calcification_count_image_level
-        outlier_calcification_count_dataset_level += outlier_calcification_count_image_level
+        calcification_count_dataset_level += calcification_count_image_level
+        large_calcification_count_dataset_level += large_calcification_count_image_level
+        neighborhood_calcification_count_dataset_level += neighborhood_calcification_count_image_level
+        micro_calcification_count_dataset_level += micro_calcification_count_image_level
         other_lesion_count_dataset_level += other_lesion_count_image_level
 
     logger.write_and_print('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
+    logger.write_and_print('This dataset contains {} calcifications.'.format(calcification_count_dataset_level))
     logger.write_and_print(
-        'This dataset contains {} qualified calcifications.'.format(qualified_calcification_count_dataset_level))
+        'This dataset contains {} large calcifications.'.format(large_calcification_count_dataset_level))
     logger.write_and_print(
-        'This dataset contains {} outlier calcifications.'.format(outlier_calcification_count_dataset_level))
+        'This dataset contains {} neighborhood calcifications.'.format(neighborhood_calcification_count_dataset_level))
+    logger.write_and_print(
+        'This dataset contains {} micro calcifications.'.format(micro_calcification_count_dataset_level))
     logger.write_and_print('This dataset contains {} other lesions.'.format(other_lesion_count_dataset_level))
 
     return
