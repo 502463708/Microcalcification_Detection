@@ -36,11 +36,11 @@ def ParseArguments():
                         help='The type of dataset to be evaluated (training, validation, test).')
     parser.add_argument('--prediction_saving_dir',
                         type=str,
-                        default='/data/lars/results/micro_calcification_radiograph_level_detection_results/',
+                        default='/data/lars/results/micro_calcification_radiograph_level_detection_results_areath_0.2_probth_0.1_cls_pos_2_neg_0.5/',
                         help='The predicted results saving dir.')
     parser.add_argument('--reconstruction_model_saving_dir',
                         type=str,
-                        default='/data/lars/models/20190925_uCs_reconstruction_ttestlossv3_default_dilation_radius_7',
+                        default='/data/lars/models/20191025_uCs_reconstruction_ttestlossv3_default_dilation_radius_7/',
                         help='The reconstruction model saved dir.')
     parser.add_argument('--reconstruction_epoch_idx',
                         type=int,
@@ -48,7 +48,7 @@ def ParseArguments():
                         help='The epoch index of ckpt, set -1 to choose the best ckpt on validation set.')
     parser.add_argument('--classification_model_saving_dir',
                         type=str,
-                        default='/data/lars/models/20190926_uCs_image_level_classification_CE_default/',
+                        default='/data/lars/models/20191104_uCs_patch_level_pos2neg_0.5_classification_CE_default/',
                         help='The classification model saved dir.')
     parser.add_argument('--classification_epoch_idx',
                         type=int,
@@ -64,15 +64,15 @@ def ParseArguments():
                         help='The patch moving stride from one patch to another.')
     parser.add_argument('--prob_threshold',
                         type=float,
-                        default=0.2,
+                        default=0.1,
                         help='residue[residue <= prob_threshold] = 0; residue[residue > prob_threshold] = 1')
     parser.add_argument('--area_threshold',
                         type=float,
-                        default=3.14 * 7 * 7 * 0.8,
+                        default=3.14 * 7 * 7 * 0.2,
                         help='Connected components whose area < area_threshold will be discarded.')
     parser.add_argument('--score_threshold_stride',
                         type=float,
-                        default=0.1,
+                        default=0.05,
                         help='The score threshold stride for calculating recalls and FPs.')
     parser.add_argument('--distance_threshold',
                         type=int,
@@ -329,14 +329,14 @@ def generate_coordinate_and_score_list(images_tensor, classification_net, pixel_
             processed_residue_patch_np = processed_residue_patch_np.astype(np.uint8)
             pixel_level_label_patch_np = pixel_level_label_patch_np.astype(np.uint8)
             #
-            prob_saving_image = np.zeros((1000, 500, 3), np.uint8)
-            mean_residue_saving_image = np.zeros((1000, 500, 3), np.uint8)
-            score_saving_image = np.zeros((1000, 500, 3), np.uint8)
+            prob_saving_image = np.zeros((patch_size[0], patch_size[1], 3), np.uint8)
+            mean_residue_saving_image = np.zeros((patch_size[0], patch_size[1], 3), np.uint8)
+            score_saving_image = np.zeros((patch_size[0], patch_size[1], 3), np.uint8)
             font = cv2.FONT_HERSHEY_SIMPLEX
-            cv2.putText(prob_saving_image, '{:.4f}'.format(positive_prob), (0, 100), font, 2, (255, 255, 255), 7)
-            cv2.putText(mean_residue_saving_image, '{:.4f}'.format(residue_mean), (0, 100), font, 2, (255, 255, 255), 7)
-            cv2.putText(score_saving_image, '{:.4f}'.format(positive_prob * residue_mean), (0, 100), font, 2,
-                        (255, 255, 255), 7)
+            cv2.putText(prob_saving_image, '{:.4f}'.format(positive_prob), (0, 64), font, 1, (0, 255, 255), 2)
+            cv2.putText(mean_residue_saving_image, '{:.4f}'.format(residue_mean), (0, 64), font, 1, (255, 0, 255), 2)
+            cv2.putText(score_saving_image, '{:.4f}'.format(positive_prob * residue_mean), (0, 64), font, 1,
+                        (255, 255, 0), 2)
 
             # saving
             cv2.imwrite(os.path.join(patch_visualization_dir,
