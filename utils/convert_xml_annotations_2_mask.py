@@ -113,8 +113,8 @@ def get_min_distance(mask, coordinate):
     return min_distance
 
 
-def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename, logger=None,
-                            diameter_threshold=14, distance_threshold=112):
+def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename, calcification_list,
+                            other_lesion_list, logger=None, diameter_threshold=14, distance_threshold=112):
     absolute_src_image_path = os.path.join(src_data_root_dir, 'images', image_filename)
     xml_filename = image_filename.replace('png', 'xml')
     absolute_src_xml_path = os.path.join(src_data_root_dir, 'xml_annotations', xml_filename)
@@ -152,7 +152,7 @@ def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename
         column_indexes, row_indexes = polygon(coordinate_list[:, 0], coordinate_list[:, 1])
 
         # for the calcification annotations
-        if annotation.name in ['Calcification', 'Calcifications', 'Unnamed', 'Point 1', 'Point 3']:
+        if annotation.name in calcification_list:
             calcification_count_image_level += 1
             # in case that only one pixel is annotated
             if len(row_indexes) == 0:
@@ -166,7 +166,7 @@ def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename
                 calcification_mask_np[row_indexes, column_indexes] = 1  # row ,column
 
         # for the other lesion annotations
-        else:
+        elif annotation.name in other_lesion_list:
             other_lesion_count_image_level += 1
             # in case that only one pixel is annotated
             if len(row_indexes) == 0:
@@ -256,8 +256,8 @@ def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename
            other_lesion_count_image_level
 
 
-def image_with_xml2image_with_mask(src_data_root_dir, dst_data_root_dir, image_filename, diameter_threshold,
-                                   distance_threshold, logger=None):
+def image_with_xml2image_with_mask(src_data_root_dir, dst_data_root_dir, image_filename, calcification_list,
+                                   other_lesion_list, diameter_threshold, distance_threshold, logger=None):
     absolute_src_image_path = os.path.join(src_data_root_dir, 'images', image_filename)
     xml_filename = image_filename.replace('png', 'xml')
     absolute_src_xml_path = os.path.join(src_data_root_dir, 'xml_annotations', xml_filename)
@@ -296,6 +296,8 @@ def image_with_xml2image_with_mask(src_data_root_dir, dst_data_root_dir, image_f
         other_lesion_count_image_level = generate_label_from_xml(src_data_root_dir,
                                                                  dst_data_root_dir,
                                                                  image_filename,
+                                                                 calcification_list,
+                                                                 other_lesion_list,
                                                                  logger,
                                                                  diameter_threshold,
                                                                  distance_threshold)

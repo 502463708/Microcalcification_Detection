@@ -16,6 +16,15 @@ def ParseArguments():
                         type=str,
                         default='/data/lars/data/Inbreast-radiograph-level-raw-images-with-pixel-level-labels-dataset/',
                         help='Destination data root dir.')
+    parser.add_argument('--calcification_list',
+                        type=list,
+                        default=['Calcification', 'Calcifications', 'Unnamed', 'Point 1', 'Point 3'],
+                        help='The included elements are gonna be labeled as calcifications.')
+    parser.add_argument('--other_lesion_list',
+                        type=list,
+                        default=['Cluster', 'Espiculated Region', 'Assymetry', 'Spiculated Region', 'Distortion',
+                                 'Spiculated region', 'Mass', 'Asymmetry'],
+                        help='The included elements are gonna be labeled as other lesion.')
     parser.add_argument('--diameter_threshold',
                         type=float,
                         default=14,
@@ -75,6 +84,8 @@ def TestConvertXml2Mask(args):
         other_lesion_count_image_level = image_with_xml2image_with_mask(args.src_data_root_dir,
                                                                         args.dst_data_root_dir,
                                                                         image_filename,
+                                                                        args.calcification_list,
+                                                                        args.other_lesion_list,
                                                                         args.diameter_threshold,
                                                                         args.distance_threshold,
                                                                         logger=logger)
