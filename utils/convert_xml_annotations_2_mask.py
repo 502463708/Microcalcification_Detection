@@ -140,13 +140,12 @@ def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename
     calcification_count_image_level = 0
     large_calcification_count_image_level = 0
     neighborhood_calcification_count_image_level = 0
+    covered_calcification_count_image_level = 0
     micro_calcification_count_image_level = 0
     other_lesion_count_image_level = 0
 
     # generate calcification_mask_np and other_lesion_mask_np
     for annotation in xml_obj.annotation_list:
-        annotation.print_details()
-
         # convert the outline annotation into area annotation
         coordinate_list = np.array(annotation.coordinate_list) - 1
         column_indexes, row_indexes = polygon(coordinate_list[:, 0], coordinate_list[:, 1])
@@ -211,7 +210,11 @@ def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename
             # area is gonna be picked up as an outlier calcification
             if min_distance < distance_threshold:
                 micro_calcification_count_image_level -= 1
-                neighborhood_calcification_count_image_level += 1
+                if min_distance > 0:
+                    neighborhood_calcification_count_image_level += 1
+                else:
+                    covered_calcification_count_image_level += 1
+
                 coordinates = prop.coords
                 for coordinate in coordinates:
                     row_idx = coordinate[0]
@@ -248,12 +251,14 @@ def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename
             '  This image contains {} neighborhood calcifications.'.format(
                 neighborhood_calcification_count_image_level))
         logger.write_and_print(
+            '  This image contains {} covered calcifications.'.format(covered_calcification_count_image_level))
+        logger.write_and_print(
             '  This image contains {} micro calcifications.'.format(micro_calcification_count_image_level))
         logger.write_and_print('  This image contains {} other lesions.'.format(other_lesion_count_image_level))
 
     return calcification_count_image_level, large_calcification_count_image_level, \
-           neighborhood_calcification_count_image_level, micro_calcification_count_image_level, \
-           other_lesion_count_image_level
+           neighborhood_calcification_count_image_level, covered_calcification_count_image_level, \
+           micro_calcification_count_image_level, other_lesion_count_image_level
 
 
 def image_with_xml2image_with_mask(src_data_root_dir, dst_data_root_dir, image_filename, calcification_list,
@@ -273,6 +278,7 @@ def image_with_xml2image_with_mask(src_data_root_dir, dst_data_root_dir, image_f
     calcification_count_image_level = 0
     large_calcification_count_image_level = 0
     neighborhood_calcification_count_image_level = 0
+    covered_calcification_count_image_level = 0
     micro_calcification_count_image_level = 0
     other_lesion_count_image_level = 0
 
@@ -292,16 +298,17 @@ def image_with_xml2image_with_mask(src_data_root_dir, dst_data_root_dir, image_f
             logger.write_and_print('This image has xml annotation.')
 
         calcification_count_image_level, large_calcification_count_image_level, \
-        neighborhood_calcification_count_image_level, micro_calcification_count_image_level, \
-        other_lesion_count_image_level = generate_label_from_xml(src_data_root_dir,
-                                                                 dst_data_root_dir,
-                                                                 image_filename,
-                                                                 calcification_list,
-                                                                 other_lesion_list,
-                                                                 logger,
-                                                                 diameter_threshold,
-                                                                 distance_threshold)
+        neighborhood_calcification_count_image_level, covered_calcification_count_image_level, \
+        micro_calcification_count_image_level, other_lesion_count_image_level = generate_label_from_xml(
+            src_data_root_dir,
+            dst_data_root_dir,
+            image_filename,
+            calcification_list,
+            other_lesion_list,
+            logger,
+            diameter_threshold,
+            distance_threshold)
 
     return calcification_count_image_level, large_calcification_count_image_level, \
-           neighborhood_calcification_count_image_level, micro_calcification_count_image_level, \
-           other_lesion_count_image_level
+           neighborhood_calcification_count_image_level, covered_calcification_count_image_level, \
+           micro_calcification_count_image_level, other_lesion_count_image_level

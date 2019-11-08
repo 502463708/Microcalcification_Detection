@@ -14,7 +14,7 @@ def ParseArguments():
                         help='Source data root dir.')
     parser.add_argument('--dst_data_root_dir',
                         type=str,
-                        default='/data/lars/data/Inbreast-radiograph-level-raw-images-with-pixel-level-labels-dataset/',
+                        default='/data/lars/data/Inbreast-microcalcification-datasets-20191105/Inbreast-radiograph-level-raw-images-with-pixel-level-labels-dataset/',
                         help='Destination data root dir.')
     parser.add_argument('--calcification_list',
                         type=list,
@@ -24,6 +24,7 @@ def ParseArguments():
                         type=list,
                         default=['Cluster', 'Espiculated Region', 'Assymetry', 'Spiculated Region', 'Distortion',
                                  'Spiculated region', 'Mass', 'Asymmetry'],
+                        # default=[],
                         help='The included elements are gonna be labeled as other lesion.')
     parser.add_argument('--diameter_threshold',
                         type=float,
@@ -32,6 +33,7 @@ def ParseArguments():
     parser.add_argument('--distance_threshold',
                         type=int,
                         default=21,
+                        # default=-1,
                         help='The distance_threshold for picking up micro calcifications nearby the other lesion area.')
 
     args = parser.parse_args()
@@ -40,10 +42,13 @@ def ParseArguments():
     assert os.path.exists(args.src_data_root_dir), 'Source data root dir does not exist.'
 
     # remove the destination data root dir if it already exists
-    if os.path.exists(args.dst_data_root_dir):
-        shutil.rmtree(args.dst_data_root_dir)
+    parent_dir = os.path.dirname(args.dst_data_root_dir) if args.dst_data_root_dir[-1] != '/' else os.path.dirname(
+        args.dst_data_root_dir[:-1])
+    if os.path.exists(parent_dir):
+        shutil.rmtree(parent_dir)
 
     # create brand new destination data root dir
+    os.mkdir(parent_dir)
     os.mkdir(args.dst_data_root_dir)
     os.mkdir(os.path.join(args.dst_data_root_dir, 'images'))
     os.mkdir(os.path.join(args.dst_data_root_dir, 'labels'))
@@ -69,6 +74,7 @@ def TestConvertXml2Mask(args):
     calcification_count_dataset_level = 0
     large_calcification_count_dataset_level = 0
     neighborhood_calcification_count_dataset_level = 0
+    covered_calcification_count_dataset_level = 0
     micro_calcification_count_dataset_level = 0
     other_lesion_count_dataset_level = 0
 
@@ -80,19 +86,21 @@ def TestConvertXml2Mask(args):
             'Processing {} out of {}, filename: {}'.format(current_idx, len(image_filename_list), image_filename))
 
         calcification_count_image_level, large_calcification_count_image_level, \
-        neighborhood_calcification_count_image_level, micro_calcification_count_image_level, \
-        other_lesion_count_image_level = image_with_xml2image_with_mask(args.src_data_root_dir,
-                                                                        args.dst_data_root_dir,
-                                                                        image_filename,
-                                                                        args.calcification_list,
-                                                                        args.other_lesion_list,
-                                                                        args.diameter_threshold,
-                                                                        args.distance_threshold,
-                                                                        logger=logger)
+        neighborhood_calcification_count_image_level, covered_calcification_count_image_level, \
+        micro_calcification_count_image_level, other_lesion_count_image_level = image_with_xml2image_with_mask(
+            args.src_data_root_dir,
+            args.dst_data_root_dir,
+            image_filename,
+            args.calcification_list,
+            args.other_lesion_list,
+            args.diameter_threshold,
+            args.distance_threshold,
+            logger=logger)
 
         calcification_count_dataset_level += calcification_count_image_level
         large_calcification_count_dataset_level += large_calcification_count_image_level
         neighborhood_calcification_count_dataset_level += neighborhood_calcification_count_image_level
+        covered_calcification_count_dataset_level += covered_calcification_count_image_level
         micro_calcification_count_dataset_level += micro_calcification_count_image_level
         other_lesion_count_dataset_level += other_lesion_count_image_level
 
@@ -102,6 +110,8 @@ def TestConvertXml2Mask(args):
         'This dataset contains {} large calcifications.'.format(large_calcification_count_dataset_level))
     logger.write_and_print(
         'This dataset contains {} neighborhood calcifications.'.format(neighborhood_calcification_count_dataset_level))
+    logger.write_and_print(
+        'This dataset contains {} covered calcifications.'.format(covered_calcification_count_dataset_level))
     logger.write_and_print(
         'This dataset contains {} micro calcifications.'.format(micro_calcification_count_dataset_level))
     logger.write_and_print('This dataset contains {} other lesions.'.format(other_lesion_count_dataset_level))
