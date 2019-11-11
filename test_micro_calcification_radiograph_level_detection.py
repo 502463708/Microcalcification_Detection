@@ -28,7 +28,7 @@ def ParseArguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_root_dir',
                         type=str,
-                        default='/data/lars/data/Inbreast-radiograph-level-roi-extracted-data-split-dataset/',
+                        default='/data/lars/data/Inbreast-microcalcification-datasets-5764-uCs-20191107/Inbreast-radiograph-level-roi-extracted-data-split-dataset/',
                         help='The source data dir.')
     parser.add_argument('--dataset_type',
                         type=str,
@@ -36,11 +36,11 @@ def ParseArguments():
                         help='The type of dataset to be evaluated (training, validation, test).')
     parser.add_argument('--prediction_saving_dir',
                         type=str,
-                        default='/data/lars/results/micro_calcification_radiograph_level_detection_results_areath_0.2_probth_0.1_cls_pos_2_neg_0.5/',
+                        default='/data/lars/results/20191109_5764-uCs-micro_calcification_radiograph_level_detection_results_rec_dilatted_7_cls_pos_2_neg_0.5_areath_0.2_probth_0.1/',
                         help='The predicted results saving dir.')
     parser.add_argument('--reconstruction_model_saving_dir',
                         type=str,
-                        default='/data/lars/models/20191025_uCs_reconstruction_ttestlossv3_default_dilation_radius_7/',
+                        default='/data/lars/models/20191108_5764_uCs_patch_level_reconstruction_ttestlossv3_default_dilation_radius_7/',
                         help='The reconstruction model saved dir.')
     parser.add_argument('--reconstruction_epoch_idx',
                         type=int,
@@ -48,7 +48,7 @@ def ParseArguments():
                         help='The epoch index of ckpt, set -1 to choose the best ckpt on validation set.')
     parser.add_argument('--classification_model_saving_dir',
                         type=str,
-                        default='/data/lars/models/20191104_uCs_patch_level_pos2neg_0.5_classification_CE_default/',
+                        default='/data/lars/models/20191108_5764_uCs_patch_level_pos2neg_0.5_classification_CE_default/',
                         help='The classification model saved dir.')
     parser.add_argument('--classification_epoch_idx',
                         type=int,

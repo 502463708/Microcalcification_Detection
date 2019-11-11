@@ -23,11 +23,11 @@ def ParseArguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_root_dir',
                         type=str,
-                        default='/data/lars/data/Inbreast-dataset-cropped-pathches/',
+                        default='/data/lars/data/Inbreast-microcalcification-datasets-5764-uCs-20191107/Inbreast-patch-level-split-pos2neg-ratio-1-dataset/',
                         help='Source data dir.')
     parser.add_argument('--model_saving_dir',
                         type=str,
-                        default='/data/lars/models/20190925_uCs_reconstruction_ttestlossv3_default_dilation_radius_7',
+                        default='/data/lars/models/20191108_5764_uCs_patch_level_reconstruction_ttestlossv3_default_dilation_radius_7/',
                         help='Model saved dir.')
     parser.add_argument('--epoch_idx',
                         type=int,
@@ -43,7 +43,7 @@ def ParseArguments():
                         help='The specified dilation_radius when training.')
     parser.add_argument('--prob_threshold',
                         type=float,
-                        default=0.2,
+                        default=0.1,
                         help='residue[residue <= prob_threshold] = 0; residue[residue > prob_threshold] = 1')
     parser.add_argument('--area_threshold',
                         type=float,
