@@ -47,12 +47,16 @@ def ParseArguments():
                         help='residue[residue <= prob_threshold] = 0; residue[residue > prob_threshold] = 1')
     parser.add_argument('--area_threshold',
                         type=float,
-                        default=3.14 * 7 * 7 / 3,
+                        default=3.14 * 7 * 7 / 4,
                         help='Connected components whose area < area_threshold will be discarded.')
     parser.add_argument('--distance_threshold',
                         type=int,
                         default=14,
                         help='Candidates whose distance between calcification < distance_threshold is a recalled one.')
+    parser.add_argument('--slack_for_recall',
+                        type=bool,
+                        default=True,
+                        help='The bool variable for slacking recall metric standard.')
     parser.add_argument('--batch_size',
                         type=int,
                         default=48,
@@ -162,7 +166,7 @@ def TestMicroCalcificationReconstruction(args):
 
     logger.write_and_print('Load ckpt: {0}...'.format(ckpt_path))
 
-    # create dataset and data loader
+    # create dataset
     dataset = MicroCalcificationDataset(data_root_dir=args.data_root_dir,
                                         mode=args.dataset_type,
                                         enable_random_sampling=False,
@@ -172,11 +176,13 @@ def TestMicroCalcificationReconstruction(args):
                                         dilation_radius=args.dilation_radius,
                                         calculate_micro_calcification_number=cfg.dataset.calculate_micro_calcification_number,
                                         enable_data_augmentation=False)
-    #
+
+    # create data loader
     data_loader = DataLoader(dataset, batch_size=args.batch_size,
                              shuffle=False, num_workers=cfg.train.num_threads)
 
-    metrics = MetricsReconstruction(args.prob_threshold, args.area_threshold, args.distance_threshold)
+    metrics = MetricsReconstruction(args.prob_threshold, args.area_threshold, args.distance_threshold,
+                                    args.slack_for_recall)
 
     calcification_num = 0
     recall_num = 0

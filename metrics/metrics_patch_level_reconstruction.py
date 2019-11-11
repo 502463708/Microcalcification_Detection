@@ -4,16 +4,17 @@ This file implements a class which can evaluate the recall and false positive
 import numpy as np
 import torch
 
-from common.utils import post_process_residue
+from common.utils import get_min_distance, post_process_residue
 from skimage import measure
 
 
 class MetricsReconstruction(object):
-    def __init__(self, prob_threshold, area_threshold, distance_threshold):
+    def __init__(self, prob_threshold, area_threshold, distance_threshold, slack_for_recall=False):
         """
         :param prob_threshold: the threshold for the binary process of the residue
         :param area_threshold: the threshold for discarding some connected components
         :param distance_threshold: the threshold for discriminating recall amd FP
+        :param slack_for_recall: the bool variable for slacking recall metric standard
         """
 
         assert 0 <= prob_threshold <= 1
@@ -24,6 +25,9 @@ class MetricsReconstruction(object):
 
         assert distance_threshold > 0
         self.distance_threshold = distance_threshold
+
+        assert isinstance(slack_for_recall, bool)
+        self.slack_for_recall = slack_for_recall
 
         # record metric on validation set for determining the best model to be saved
         self.determine_saving_metric_on_validation_list = list()
@@ -55,7 +59,7 @@ class MetricsReconstruction(object):
             # transform the tensor into ndarray format
             labels = labels.numpy()
 
-        # discard the batch channel
+        # discard the channel dimension
         preds = preds.squeeze(axis=1)
 
         assert preds.shape == labels.shape  # shape: B, H, W
@@ -134,6 +138,11 @@ class MetricsReconstruction(object):
                     if np.linalg.norm(label_list[label_idx] - pred_list[pred_idx]) <= self.distance_threshold:
                         recall_num += 1
                         break
+                    elif self.slack_for_recall:
+                        min_distance = get_min_distance(post_process_pred, label_list[label_idx])
+                        if min_distance is not None and min_distance <= self.distance_threshold:
+                            recall_num += 1
+                            break
 
             # calculate FP
             for pred_idx in range(pred_num):
