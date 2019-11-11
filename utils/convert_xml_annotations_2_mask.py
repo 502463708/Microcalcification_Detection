@@ -5,6 +5,7 @@ import shutil
 import SimpleITK as sitk
 import xml.etree.ElementTree as ET
 
+from common.utils import get_min_distance
 from skimage.draw import polygon
 from skimage import measure
 
@@ -81,36 +82,6 @@ def generate_label_from_image(src_data_root_dir, dst_data_root_dir, image_filena
     sitk.WriteImage(stacked_image, absolute_dst_stacked_data_path)
 
     return
-
-
-def get_min_distance(mask, coordinate):
-    # mask must be a binary mask
-    assert np.where(mask == 0)[0].shape[0] + np.where(mask == 1)[0].shape[0] == mask.size
-
-    # coordinate must be a ndarray
-    assert isinstance(coordinate, np.ndarray) or isinstance(coordinate, tuple)
-
-    if isinstance(coordinate, tuple):
-        coordinate = np.array(coordinate)
-
-    min_distance = None
-
-    # calculate the minimum distance between coordinate and the pixels marked 1 on mask
-    if np.where(mask == 1)[0].shape[0] > 0:
-        # generate two matrix for row and column indexes respectively
-        idx_indicated_matrix = np.indices(mask.shape)
-        row_idx_indicated_matrix = idx_indicated_matrix[0]
-        column_idx_indicated_matrix = idx_indicated_matrix[1]
-
-        # generate distance matrix
-        distance_matrix = np.sqrt(
-            np.square(row_idx_indicated_matrix - coordinate[0]) + np.square(
-                column_idx_indicated_matrix - coordinate[1]))
-
-        # get the min distance
-        min_distance = distance_matrix[mask == 1].min()
-
-    return min_distance
 
 
 def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename, calcification_list,

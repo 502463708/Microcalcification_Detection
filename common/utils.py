@@ -156,3 +156,35 @@ def BatchImageToNumber(Batch_tensor):
     Batch_out_np= np.array(Batch_out_list)
     Batch_out_tensor=torch.from_numpy(Batch_out_np)
     return Batch_out_tensor
+
+
+def get_min_distance(mask, coordinate):
+    # mask must be a 2D binary mask
+    assert np.where(mask == 0)[0].shape[0] + np.where(mask == 1)[0].shape[0] == mask.size
+    assert len(mask.shape) == 2
+
+    # coordinate must be 2 dimensions
+    assert len(coordinate) == 2
+    assert isinstance(coordinate, np.ndarray) or isinstance(coordinate, tuple)
+    if isinstance(coordinate, tuple):
+        coordinate = np.array(coordinate)
+
+    # return None when there is no foreground existing in the source mask
+    min_distance = None
+
+    # calculate the minimum distance between coordinate and the pixels marked 1 on mask
+    if np.where(mask == 1)[0].shape[0] > 0:
+        # generate two matrix for row and column indexes respectively
+        idx_indicated_matrix = np.indices(mask.shape)
+        row_idx_indicated_matrix = idx_indicated_matrix[0]
+        column_idx_indicated_matrix = idx_indicated_matrix[1]
+
+        # generate distance matrix
+        distance_matrix = np.sqrt(
+            np.square(row_idx_indicated_matrix - coordinate[0]) + np.square(
+                column_idx_indicated_matrix - coordinate[1]))
+
+        # get the min distance
+        min_distance = distance_matrix[mask == 1].min()
+
+    return min_distance
