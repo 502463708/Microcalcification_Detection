@@ -140,7 +140,7 @@ class MetricsReconstruction(object):
                         break
                     elif self.slack_for_recall:
                         min_distance = get_min_distance(post_process_pred, label_list[label_idx])
-                        if min_distance is not None and min_distance <= self.distance_threshold:
+                        if min_distance is not None and min_distance <= self.distance_threshold / 2:
                             recall_num += 1
                             break
 
