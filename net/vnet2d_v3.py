@@ -174,13 +174,12 @@ class OutputBlock(nn.Module):
     def forward(self, input):
         out = self.class_act1(self.class_bn1(self.class_conv1(input)))
         out = self.class_conv2(out)
-        out = torch.sigmoid(out)
+
         return out
 
 
 class VNet2d(nn.Module):
     """ 2d v-net """
-
     def __init__(self, num_in_channels, num_out_channels):
         super(VNet2d, self).__init__()
         self.in_block = InputBlock(num_in_channels, 16)
@@ -192,6 +191,8 @@ class VNet2d(nn.Module):
         self.up_32 = UpBlock(64, 32, 1, use_bottle_neck=False)
         self.out_block = OutputBlock(32, num_out_channels)
 
+        return
+
     def forward(self, input_tensor, use_softmax=False):
         out16 = self.in_block(input_tensor)
         out32 = self.down_32(out16)
@@ -200,12 +201,13 @@ class VNet2d(nn.Module):
         out = self.up_128(out128, out64)
         out = self.up_64(out, out32)
         out = self.up_32(out, out16)
-        output_tensor = self.out_block(out)
+        out = self.out_block(out)
 
         if use_softmax:
-            output_tensor = torch.softmax(output_tensor, dim=1)
+            out = torch.softmax(out, dim=1)
 
-        return output_tensor
+        return out
 
     def max_stride(self):
+
         return 16
