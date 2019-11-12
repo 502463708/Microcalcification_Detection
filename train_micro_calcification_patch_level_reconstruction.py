@@ -282,7 +282,7 @@ if __name__ == '__main__':
                                         shuffle=True, num_workers=cfg.train.num_threads)
 
     # define loss function
-    assert cfg.loss.name in ['TTestLoss', 'TTestLossV2', 'TTestLossV3', 'SingleClassDiceLoss']
+    assert cfg.loss.name in ['TTestLoss', 'TTestLossV2', 'TTestLossV3', 'SingleClassDiceLoss', 'SingleClassTverskyLoss']
     if cfg.loss.name == 'TTestLoss':
         loss_func = TTestLoss(beta=cfg.loss.t_test_loss.beta, lambda_p=cfg.loss.t_test_loss.lambda_p,
                               lambda_n=cfg.loss.t_test_loss.lambda_n)
