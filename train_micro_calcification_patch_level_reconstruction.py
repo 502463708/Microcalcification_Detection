@@ -12,6 +12,7 @@ from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDa
 from metrics.metrics_patch_level_reconstruction import MetricsReconstruction
 from logger.logger import Logger
 from loss.single_class_dice_loss import SingleClassDiceLoss
+from loss.single_class_tversky_loss import SingleClassTverskyLoss
 from loss.t_test_loss import TTestLoss
 from loss.t_test_loss_v2 import TTestLossV2
 from loss.t_test_loss_v3 import TTestLossV3
@@ -83,6 +84,9 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
             pixel_level_labels_dilated_tensor = pixel_level_labels_dilated_tensor.cuda()
             loss = loss_func(prediction_residues_tensor, pixel_level_labels_dilated_tensor, logger)
         elif loss_func.get_name() == 'SingleClassDiceLoss':
+            pixel_level_labels_dilated_tensor = pixel_level_labels_dilated_tensor.cuda()
+            loss = loss_func(prediction_residues_tensor, pixel_level_labels_dilated_tensor, logger)
+        elif loss_func.get_name() == 'SingleClassTverskyLoss':
             pixel_level_labels_dilated_tensor = pixel_level_labels_dilated_tensor.cuda()
             loss = loss_func(prediction_residues_tensor, pixel_level_labels_dilated_tensor, logger)
 
@@ -290,6 +294,8 @@ if __name__ == '__main__':
                                 lambda_n=cfg.loss.t_test_loss.lambda_n)
     elif cfg.loss.name == 'SingleClassDiceLoss':
         loss_func = SingleClassDiceLoss()
+    elif cfg.loss.name == 'SingleClassTverskyLoss':
+        loss_func = SingleClassTverskyLoss(cfg.loss.tversky_loss.alpha)
 
     # setup optimizer
     optimizer = torch.optim.Adam(net.parameters(), lr=cfg.lr_scheduler.lr)
