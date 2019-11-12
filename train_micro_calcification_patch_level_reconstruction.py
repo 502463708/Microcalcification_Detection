@@ -11,6 +11,7 @@ from config.config_micro_calcification_patch_level_reconstruction import cfg
 from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
 from metrics.metrics_patch_level_reconstruction import MetricsReconstruction
 from logger.logger import Logger
+from loss.single_class_dice_loss import SingleClassDiceLoss
 from loss.t_test_loss import TTestLoss
 from loss.t_test_loss_v2 import TTestLossV2
 from loss.t_test_loss_v3 import TTestLossV3
@@ -79,6 +80,9 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
             loss = loss_func(prediction_residues_tensor, image_level_labels_tensor, pixel_level_labels_dilated_tensor,
                              logger)
         elif loss_func.get_name() == 'TTestLossV3':
+            pixel_level_labels_dilated_tensor = pixel_level_labels_dilated_tensor.cuda()
+            loss = loss_func(prediction_residues_tensor, pixel_level_labels_dilated_tensor, logger)
+        elif loss_func.get_name() == 'SingleClassDiceLoss':
             pixel_level_labels_dilated_tensor = pixel_level_labels_dilated_tensor.cuda()
             loss = loss_func(prediction_residues_tensor, pixel_level_labels_dilated_tensor, logger)
 
@@ -202,7 +206,8 @@ if __name__ == '__main__':
 
         # copy related config and net .py file to the saving dir
         shutil.copyfile('./config/config_micro_calcification_patch_level_reconstruction.py',
-                        os.path.join(cfg.general.saving_dir, 'config_micro_calcification_patch_level_reconstruction.py'))
+                        os.path.join(cfg.general.saving_dir,
+                                     'config_micro_calcification_patch_level_reconstruction.py'))
         shutil.copyfile('./net/{0}.py'.format(cfg.net.name),
                         os.path.join(cfg.general.saving_dir, '{0}.py'.format(cfg.net.name)))
 
@@ -273,13 +278,18 @@ if __name__ == '__main__':
                                         shuffle=True, num_workers=cfg.train.num_threads)
 
     # define loss function
-    assert cfg.loss.name in ['TTestLoss', 'TTestLossV2', 'TTestLossV3']
+    assert cfg.loss.name in ['TTestLoss', 'TTestLossV2', 'TTestLossV3', 'SingleClassDiceLoss']
     if cfg.loss.name == 'TTestLoss':
-        loss_func = TTestLoss(beta=cfg.loss.beta, lambda_p=cfg.loss.lambda_p, lambda_n=cfg.loss.lambda_n)
+        loss_func = TTestLoss(beta=cfg.loss.t_test_loss.beta, lambda_p=cfg.loss.t_test_loss.lambda_p,
+                              lambda_n=cfg.loss.t_test_loss.lambda_n)
     elif cfg.loss.name == 'TTestLossV2':
-        loss_func = TTestLossV2(beta=cfg.loss.beta, lambda_p=cfg.loss.lambda_p, lambda_n=cfg.loss.lambda_n)
+        loss_func = TTestLossV2(beta=cfg.loss.t_test_loss.beta, lambda_p=cfg.loss.t_test_loss.lambda_p,
+                                lambda_n=cfg.loss.t_test_loss.lambda_n)
     elif cfg.loss.name == 'TTestLossV3':
-        loss_func = TTestLossV3(beta=cfg.loss.beta, lambda_p=cfg.loss.lambda_p, lambda_n=cfg.loss.lambda_n)
+        loss_func = TTestLossV3(beta=cfg.loss.t_test_loss.beta, lambda_p=cfg.loss.t_test_loss.lambda_p,
+                                lambda_n=cfg.loss.t_test_loss.lambda_n)
+    elif cfg.loss.name == 'SingleClassDiceLoss':
+        loss_func = SingleClassDiceLoss()
 
     # setup optimizer
     optimizer = torch.optim.Adam(net.parameters(), lr=cfg.lr_scheduler.lr)

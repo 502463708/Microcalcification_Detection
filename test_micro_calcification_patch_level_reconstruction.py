@@ -15,7 +15,7 @@ from net.vnet2d_v2 import VNet2d
 from torch.utils.data import DataLoader
 from time import time
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '6'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 cudnn.benchmark = True
 
 
