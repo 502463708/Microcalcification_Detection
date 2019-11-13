@@ -69,7 +69,8 @@ def ParseArguments():
 
 def save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor, prediction_residues_tensor,
                                       post_process_preds_np, pixel_level_labels_tensor,
-                                      pixel_level_labels_dilated_tensor, filenames, prediction_saving_dir):
+                                      pixel_level_labels_dilated_tensor, filenames, result_flag_list,
+                                      prediction_saving_dir):
     # convert tensor into numpy and squeeze channel dimension
     images_np = images_tensor.cpu().detach().numpy().squeeze(axis=1)
     reconstructed_images_np = reconstructed_images_tensor.cpu().detach().numpy().squeeze(axis=1)
@@ -111,18 +112,21 @@ def save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor
         pixel_level_label_np = pixel_level_label_np.astype(np.uint8)
         pixel_level_label_dilated_np = pixel_level_label_dilated_np.astype(np.uint8)
 
-        cv2.imwrite(os.path.join(prediction_saving_dir, filename.replace('.png', '_image.png')),
-                    image_np)
-        cv2.imwrite(os.path.join(prediction_saving_dir, filename.replace('.png', '_reconstructed.png')),
-                    reconstructed_image_np)
-        cv2.imwrite(os.path.join(prediction_saving_dir, filename.replace('.png', '_residue.png')),
-                    prediction_residue_np)
-        cv2.imwrite(os.path.join(prediction_saving_dir, filename.replace('.png', '_post_processed_residue.png')),
-                    post_process_pred_np)
-        cv2.imwrite(os.path.join(prediction_saving_dir, filename.replace('.png', '_pixel_level_label.png')),
-                    pixel_level_label_np)
-        cv2.imwrite(os.path.join(prediction_saving_dir, filename.replace('.png', '_pixel_level_dilated_label.png')),
-                    pixel_level_label_dilated_np)
+        result_flag_2_class_mapping = {0: 'TPs_only', 1: 'FPs_only', 2: 'FNs_only', 3: 'FPs_FNs_both', }
+        saving_class = result_flag_2_class_mapping[result_flag_list[idx]]
+
+        cv2.imwrite(os.path.join(prediction_saving_dir, saving_class,
+                                 filename.replace('.png', '_image.png')), image_np)
+        cv2.imwrite(os.path.join(prediction_saving_dir, saving_class,
+                                 filename.replace('.png', '_reconstructed.png')), reconstructed_image_np)
+        cv2.imwrite(os.path.join(prediction_saving_dir, saving_class,
+                                 filename.replace('.png', '_residue.png')), prediction_residue_np)
+        cv2.imwrite(os.path.join(prediction_saving_dir, saving_class,
+                                 filename.replace('.png', '_post_processed_residue.png')), post_process_pred_np)
+        cv2.imwrite(os.path.join(prediction_saving_dir, saving_class,
+                                 filename.replace('.png', '_pixel_level_label.png')), pixel_level_label_np)
+        cv2.imwrite(os.path.join(prediction_saving_dir, saving_class,
+                                 filename.replace('.png', '_pixel_level_dilated_label.png')), pixel_level_label_dilated_np)
 
     return
 
@@ -132,12 +136,20 @@ def TestMicroCalcificationReconstruction(args):
                                          'reconstruction_results_dataset_{}_epoch_{}'.format(args.dataset_type,
                                                                                              args.epoch_idx))
     visualization_saving_dir = os.path.join(prediction_saving_dir, 'qualitative_results')
+    visualization_TP_saving_dir = os.path.join(visualization_saving_dir, 'TPs_only')
+    visualization_FP_saving_dir = os.path.join(visualization_saving_dir, 'FPs_only')
+    visualization_FN_saving_dir = os.path.join(visualization_saving_dir, 'FNs_only')
+    visualization_FP_FN_saving_dir = os.path.join(visualization_saving_dir, 'FPs_FNs_both')
 
     # remove existing dir which has the same name and create clean dir
     if os.path.exists(prediction_saving_dir):
         shutil.rmtree(prediction_saving_dir)
     os.mkdir(prediction_saving_dir)
     os.mkdir(visualization_saving_dir)
+    os.mkdir(visualization_TP_saving_dir)
+    os.mkdir(visualization_FP_saving_dir)
+    os.mkdir(visualization_FN_saving_dir)
+    os.mkdir(visualization_FP_FN_saving_dir)
 
     # initialize logger
     logger = Logger(prediction_saving_dir, 'quantitative_results.txt')
@@ -200,8 +212,8 @@ def TestMicroCalcificationReconstruction(args):
         reconstructed_images_tensor, prediction_residues_tensor = net(images_tensor)
 
         # evaluation
-        post_process_preds_np, calcification_num_batch_level, recall_num_batch_level, FP_num_batch_level = \
-            metrics.metric_batch_level(prediction_residues_tensor, pixel_level_labels_tensor)
+        post_process_preds_np, calcification_num_batch_level, recall_num_batch_level, FP_num_batch_level, \
+        result_flag_list = metrics.metric_batch_level(prediction_residues_tensor, pixel_level_labels_tensor)
 
         calcification_num += calcification_num_batch_level
         recall_num += recall_num_batch_level
@@ -219,7 +231,8 @@ def TestMicroCalcificationReconstruction(args):
 
         save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor, prediction_residues_tensor,
                                           post_process_preds_np, pixel_level_labels_tensor,
-                                          pixel_level_labels_dilated_tensor, filenames, visualization_saving_dir)
+                                          pixel_level_labels_dilated_tensor, filenames, result_flag_list,
+                                          visualization_saving_dir)
 
         logger.flush()
 

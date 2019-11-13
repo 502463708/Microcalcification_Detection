@@ -68,12 +68,16 @@ class MetricsReconstruction(object):
         calcification_num_batch_level = 0
         recall_num_batch_level = 0
         FP_num_batch_level = 0
+        result_flag_list = list()
 
         assert preds.shape == labels.shape  # shape: B, H, W
 
         for patch_idx in range(preds.shape[0]):
             pred = preds[patch_idx, :, :]
             label = labels[patch_idx, :, :]
+
+            # this flag indicates the result of this patch, ranging from 0 - 3
+            result_flag = 0
 
             post_process_pred, calcification_num_patch_level, recall_num_patch_level, FP_num_patch_level = \
                 self.metric_patch_level(pred, label)
@@ -83,11 +87,22 @@ class MetricsReconstruction(object):
             recall_num_batch_level += recall_num_patch_level
             FP_num_batch_level += FP_num_patch_level
 
+            # result_flag = 0 -> TP only;
+            #               1 -> FP only;
+            #               2 -> FN only;
+            #               3 -> both FN & FP
+            if FP_num_patch_level > 0:
+                result_flag += 1
+            if recall_num_patch_level < calcification_num_patch_level:
+                result_flag += 2
+            result_flag_list.append(result_flag)
+
         post_process_preds_np = np.array(post_process_preds_list)  # shape: B, H, W
 
         assert post_process_preds_np.shape == preds.shape
 
-        return post_process_preds_np, calcification_num_batch_level, recall_num_batch_level, FP_num_batch_level
+        return post_process_preds_np, calcification_num_batch_level, recall_num_batch_level, FP_num_batch_level, \
+               result_flag_list
 
     def metric_patch_level(self, pred, label):
         assert len(pred.shape) == 2
