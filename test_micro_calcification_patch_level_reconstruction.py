@@ -61,6 +61,10 @@ def ParseArguments():
                         type=int,
                         default=48,
                         help='Batch size for evaluation.')
+    parser.add_argument('--save_nii',
+                        type=bool,
+                        default=False,
+                        help='A bool variable indicating whether nii format data is gonna be saved.')
 
     args = parser.parse_args()
 
@@ -70,7 +74,7 @@ def ParseArguments():
 def save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor, prediction_residues_tensor,
                                       post_process_preds_np, pixel_level_labels_tensor,
                                       pixel_level_labels_dilated_tensor, filenames, result_flag_list,
-                                      prediction_saving_dir):
+                                      prediction_saving_dir, save_nii=False):
     # convert tensor into numpy and squeeze channel dimension
     images_np = images_tensor.cpu().detach().numpy().squeeze(axis=1)
     reconstructed_images_np = reconstructed_images_tensor.cpu().detach().numpy().squeeze(axis=1)
@@ -96,7 +100,6 @@ def save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor
                                      np.expand_dims(pixel_level_label_dilated_np, axis=0)), axis=0)
 
         stacked_image = sitk.GetImageFromArray(stacked_np)
-        sitk.WriteImage(stacked_image, os.path.join(prediction_saving_dir, filename.replace('png', 'nii')))
 
         image_np *= 255
         reconstructed_image_np *= 255
@@ -114,6 +117,9 @@ def save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor
 
         result_flag_2_class_mapping = {0: 'TPs_only', 1: 'FPs_only', 2: 'FNs_only', 3: 'FPs_FNs_both', }
         saving_class = result_flag_2_class_mapping[result_flag_list[idx]]
+
+        sitk.WriteImage(stacked_image, os.path.join(prediction_saving_dir, saving_class,
+                                                    filename.replace('png', 'nii')))
 
         cv2.imwrite(os.path.join(prediction_saving_dir, saving_class,
                                  filename.replace('.png', '_image.png')), image_np)
@@ -232,7 +238,7 @@ def TestMicroCalcificationReconstruction(args):
         save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor, prediction_residues_tensor,
                                           post_process_preds_np, pixel_level_labels_tensor,
                                           pixel_level_labels_dilated_tensor, filenames, result_flag_list,
-                                          visualization_saving_dir)
+                                          visualization_saving_dir, save_nii=args.save_nii)
 
         logger.flush()
 
