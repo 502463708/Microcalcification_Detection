@@ -107,7 +107,8 @@ class MetricsRadiographLevelDetection(object):
 
         return
 
-    def metric_all_score_thresholds(self, pred_coord_list, pred_score_list, label_coord_list):
+    def metric_all_score_thresholds(self, pred_coord_list, pred_score_list, label_coord_list,
+                                    processed_residue_radiograph_np=None):
         """
         evaluate at batch-level
         :param preds: residues
@@ -128,7 +129,8 @@ class MetricsRadiographLevelDetection(object):
             detection_result_record_radiograph_level = self.metric_a_specific_score_threshold(processed_pred_coord_list,
                                                                                               label_coord_list,
                                                                                               threshold_idx,
-                                                                                              detection_result_record_radiograph_level)
+                                                                                              detection_result_record_radiograph_level,
+                                                                                              processed_residue_radiograph_np)
 
             score_threshold += self.score_threshold_stride
             threshold_idx += 1
@@ -154,7 +156,18 @@ class MetricsRadiographLevelDetection(object):
         return processed_pred_coord_list
 
     def metric_a_specific_score_threshold(self, pred_coord_list, label_coord_list, threshold_idx,
-                                          detection_result_record_radiograph_level):
+                                          detection_result_record_radiograph_level,
+                                          processed_residue_radiograph_np=None):
+        slack_for_recall = False
+        height = 0
+        width = 0
+        if processed_residue_radiograph_np is not None:
+            assert len(processed_residue_radiograph_np.shape) == 2
+
+            height = processed_residue_radiograph_np.shape[0]
+            width = processed_residue_radiograph_np.shape[1]
+            slack_for_recall = True
+
         pred_num = len(pred_coord_list)
         label_num = len(label_coord_list)
 
@@ -174,10 +187,34 @@ class MetricsRadiographLevelDetection(object):
             # calculate recall
             for label_idx in range(label_num):
                 for pred_idx in range(pred_num):
+                    label_coord = label_coord_list[label_idx]
+                    pred_coord = pred_coord_list[pred_idx]
                     if np.linalg.norm(
-                            label_coord_list[label_idx] - pred_coord_list[pred_idx]) <= self.distance_threshold:
+                            label_coord - pred_coord) <= self.distance_threshold:
                         recall_num += 1
                         break
+                    elif slack_for_recall:
+                        residue_accumulated_value = 0
+                        # whether there exists 1 pixel at least with residue value > 0 in the round area which is
+                        # centered by label_coord and set radius as self.distance_threshold / 2
+                        crop_center_row_idx = label_coord[0]
+                        crop_center_column_idx = label_coord[1]
+                        crop_row_start_idx = int(np.clip(crop_center_row_idx - self.distance_threshold / 2, 0, height))
+                        crop_row_end_idx = int(np.clip(crop_center_row_idx + self.distance_threshold / 2, 0, height))
+                        crop_column_start_idx = int(
+                            np.clip(crop_center_column_idx - self.distance_threshold / 2, 0, width))
+                        crop_column_end_idx = int(
+                            np.clip(crop_center_column_idx + self.distance_threshold / 2, 0, width))
+
+                        for row_idx in range(crop_row_start_idx, crop_row_end_idx):
+                            for column_idx in range(crop_column_start_idx, crop_column_end_idx):
+                                if np.linalg.norm(np.array([row_idx, column_idx]) - np.array(
+                                        label_coord)) <= self.distance_threshold / 2:
+                                    residue_accumulated_value += 1
+
+                        if residue_accumulated_value > 0:
+                            recall_num += 1
+                            break
 
             # calculate FP
             for pred_idx in range(pred_num):

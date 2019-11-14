@@ -78,6 +78,10 @@ def ParseArguments():
                         type=int,
                         default=14,
                         help='Candidates whose distance between calcification < distance_threshold is a recalled one.')
+    parser.add_argument('--slack_for_recall',
+                        type=bool,
+                        default=True,
+                        help='The bool variable for slacking recall metric standard.')
 
     args = parser.parse_args()
 
@@ -527,9 +531,15 @@ def TestMicroCalcificationRadiographLevelDetection(args):
                                                                  mode='annotated')
 
         # evaluate based on the above three lists
-        detection_result_record_radiograph_level = metrics.metric_all_score_thresholds(pred_coord_list, pred_score_list,
-                                                                                       label_coord_list)
-
+        if args.slack_for_recall:
+            detection_result_record_radiograph_level = metrics.metric_all_score_thresholds(pred_coord_list,
+                                                                                           pred_score_list,
+                                                                                           label_coord_list,
+                                                                                           processed_residue_radiograph_np)
+        else:
+            detection_result_record_radiograph_level = metrics.metric_all_score_thresholds(pred_coord_list,
+                                                                                           pred_score_list,
+                                                                                           label_coord_list)
         # save radiograph-level visualization results
         save_radiograph_level_results(images_tensor, pixel_level_label_np, raw_residue_radiograph_np,
                                       processed_residue_radiograph_np, filename,
