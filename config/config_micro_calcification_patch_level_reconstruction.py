@@ -50,6 +50,7 @@ __C.net.out_channels = 1
 __C.train = {}
 __C.train.num_epochs = 501  # number of training epoch
 __C.train.save_epochs = 10  # save ckpt every x epochs
+__C.train.start_save_best_ckpt = 50  # start saving best ckpt on validation set from the x-th epoch
 __C.train.batch_size = 24
 __C.train.num_threads = 8
 
@@ -64,6 +65,7 @@ __C.metrics = {}
 __C.metrics.prob_threshold = 0.1  # residue[residue <= prob_threshold] = 0; residue[residue > prob_threshold] = 1
 __C.metrics.area_threshold = 3.14 * 7 * 7 / 4  # connected components whose area < area_threshold will be discarded
 __C.metrics.distance_threshold = 14  # candidates (distance between calcification < distance_threshold) is recalled
+__C.metrics.slack_for_recall = True  #
 
 # the visdom related parameters
 __C.visdom = {}

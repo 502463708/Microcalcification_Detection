@@ -245,7 +245,7 @@ if __name__ == '__main__':
 
     # setup metrics
     metrics = MetricsReconstruction(cfg.metrics.prob_threshold, cfg.metrics.area_threshold,
-                                    cfg.metrics.distance_threshold)
+                                    cfg.metrics.distance_threshold, cfg.metrics.slack_for_recall)
 
     # setup Visualizer
     visdom_display_name = cfg.general.saving_dir.split('/')[-2]
@@ -333,4 +333,5 @@ if __name__ == '__main__':
             torch.save(net.state_dict(), os.path.join(ckpt_dir, 'net_epoch_{}.pth'.format(epoch_idx)))
 
         # save this model in case that this is the currently best model on validation set
-        save_best_ckpt(metrics, net, ckpt_dir, epoch_idx)
+        if epoch_idx >= cfg.train.start_save_best_ckpt:
+            save_best_ckpt(metrics, net, ckpt_dir, epoch_idx)
