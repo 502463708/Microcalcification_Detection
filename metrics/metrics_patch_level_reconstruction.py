@@ -147,24 +147,22 @@ class MetricsReconstruction(object):
 
         # for the positive patch case with something being detected
         else:
-            # calculate recall
+            # calculate recall & FP
+            recall_record_np = np.zeros(label_num)
+            TP_record_np = np.zeros(pred_num)
             for label_idx in range(label_num):
                 for pred_idx in range(pred_num):
                     if np.linalg.norm(label_list[label_idx] - pred_list[pred_idx]) <= self.distance_threshold:
-                        recall_num += 1
-                        break
+                        recall_record_np[label_idx] = 1
+                        TP_record_np[pred_idx] = 1
                     elif self.slack_for_recall:
-                        min_distance = get_min_distance(post_process_pred, label_list[label_idx])
+                        one_connected_component_mask = np.zeros_like(pred)
+                        one_connected_component_mask[post_process_pred_connected_components == pred_idx + 1] = 1
+                        min_distance = get_min_distance(one_connected_component_mask, label_list[label_idx])
                         if min_distance is not None and min_distance <= self.distance_threshold / 2:
-                            recall_num += 1
-                            break
-
-            # calculate FP
-            for pred_idx in range(pred_num):
-                for label_idx in range(label_num):
-                    if np.linalg.norm(label_list[label_idx] - pred_list[pred_idx]) <= self.distance_threshold:
-                        break
-                    if label_idx == label_num - 1:
-                        FP_num += 1
+                            recall_record_np[label_idx] = 1
+                            TP_record_np[pred_idx] = 1
+            recall_num = recall_record_np.sum()
+            FP_num = pred_num - TP_record_np.sum()
 
         return post_process_pred, calcification_num, recall_num, FP_num
