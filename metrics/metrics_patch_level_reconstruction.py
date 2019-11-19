@@ -162,7 +162,7 @@ class MetricsReconstruction(object):
                         if min_distance is not None and min_distance <= self.distance_threshold / 2:
                             recall_record_np[label_idx] = 1
                             TP_record_np[pred_idx] = 1
-            recall_num = recall_record_np.sum()
-            FP_num = pred_num - TP_record_np.sum()
+            recall_num = int(recall_record_np.sum())
+            FP_num = int(pred_num - TP_record_np.sum())
 
         return post_process_pred, calcification_num, recall_num, FP_num

@@ -118,8 +118,9 @@ def save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor
         result_flag_2_class_mapping = {0: 'TPs_only', 1: 'FPs_only', 2: 'FNs_only', 3: 'FPs_FNs_both', }
         saving_class = result_flag_2_class_mapping[result_flag_list[idx]]
 
-        sitk.WriteImage(stacked_image, os.path.join(prediction_saving_dir, saving_class,
-                                                    filename.replace('png', 'nii')))
+        if save_nii:
+            sitk.WriteImage(stacked_image, os.path.join(prediction_saving_dir, saving_class,
+                                                        filename.replace('png', 'nii')))
 
         cv2.imwrite(os.path.join(prediction_saving_dir, saving_class,
                                  filename.replace('.png', '_image.png')), image_np)
@@ -132,7 +133,8 @@ def save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor
         cv2.imwrite(os.path.join(prediction_saving_dir, saving_class,
                                  filename.replace('.png', '_pixel_level_label.png')), pixel_level_label_np)
         cv2.imwrite(os.path.join(prediction_saving_dir, saving_class,
-                                 filename.replace('.png', '_pixel_level_dilated_label.png')), pixel_level_label_dilated_np)
+                                 filename.replace('.png', '_pixel_level_dilated_label.png')),
+                    pixel_level_label_dilated_np)
 
     return
 
@@ -208,6 +210,8 @@ def TestMicroCalcificationReconstruction(args):
 
     for batch_idx, (images_tensor, pixel_level_labels_tensor, pixel_level_labels_dilated_tensor,
                     image_level_labels_tensor, _, filenames) in enumerate(data_loader):
+        logger.write_and_print('Evaluating batch: {}'.format(batch_idx))
+
         # start time of this batch
         start_time_for_batch = time()
 
@@ -232,7 +236,7 @@ def TestMicroCalcificationReconstruction(args):
             'The number of the recalled calcifications of this batch = {}'.format(recall_num_batch_level))
         logger.write_and_print(
             'The number of the false positive calcifications of this batch = {}'.format(FP_num_batch_level))
-        logger.write_and_print('batch: {}, consuming time: {:.4f}s'.format(batch_idx, time() - start_time_for_batch))
+        logger.write_and_print('Consuming time: {:.4f}s'.format(time() - start_time_for_batch))
         logger.write_and_print('--------------------------------------------------------------------------------------')
 
         save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor, prediction_residues_tensor,
