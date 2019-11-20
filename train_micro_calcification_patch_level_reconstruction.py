@@ -99,7 +99,7 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
             optimizer.step()
 
         # metrics
-        post_process_residues_np, calcification_num_batch_level, recall_num_batch_level, FP_num_batch_level = \
+        post_process_residues_np, calcification_num_batch_level, recall_num_batch_level, FP_num_batch_level, _ = \
             metrics.metric_batch_level(prediction_residues_tensor, pixel_level_labels_tensor)
         calcification_num_epoch_level += calcification_num_batch_level
         recall_num_epoch_level += recall_num_batch_level
