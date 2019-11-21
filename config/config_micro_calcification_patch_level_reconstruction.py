@@ -32,7 +32,7 @@ __C.dataset.augmentation.enable_horizontal_flip = True
 
 # loss
 __C.loss = {}
-__C.loss.name = 'SingleClassTverskyLoss'  # only 'TTestLoss', 'TTestLossV2', 'TTestLossV3', 'SingleClassDiceLoss', 'SingleClassTverskyLoss' is supported now
+__C.loss.name = 'TTestLossV4'  # only 'TTestLoss', 'TTestLossV2', 'TTestLossV3', 'SingleClassDiceLoss', 'SingleClassTverskyLoss', 'TTestLossV4' is supported now
 __C.loss.t_test_loss = {}
 __C.loss.t_test_loss.beta = 0.8
 __C.loss.t_test_loss.lambda_p = 1
@@ -48,8 +48,8 @@ __C.net.out_channels = 1
 
 # training parameters
 __C.train = {}
-__C.train.num_epochs = 501  # number of training epoch
-__C.train.save_epochs = 10  # save ckpt every x epochs
+__C.train.num_epochs = 1001  # number of training epoch
+__C.train.save_epochs = 50  # save ckpt every x epochs
 __C.train.start_save_best_ckpt = 50  # start saving best ckpt on validation set from the x-th epoch
 __C.train.batch_size = 24
 __C.train.num_threads = 8

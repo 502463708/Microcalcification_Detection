@@ -16,6 +16,7 @@ from loss.single_class_tversky_loss import SingleClassTverskyLoss
 from loss.t_test_loss import TTestLoss
 from loss.t_test_loss_v2 import TTestLossV2
 from loss.t_test_loss_v3 import TTestLossV3
+from loss.t_test_loss_v4 import TTestLossV4
 from torch.utils.data import DataLoader
 from time import time
 
@@ -81,6 +82,9 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
             loss = loss_func(prediction_residues_tensor, image_level_labels_tensor, pixel_level_labels_dilated_tensor,
                              logger)
         elif loss_func.get_name() == 'TTestLossV3':
+            pixel_level_labels_dilated_tensor = pixel_level_labels_dilated_tensor.cuda()
+            loss = loss_func(prediction_residues_tensor, pixel_level_labels_dilated_tensor, logger)
+        elif loss_func.get_name() == 'TTestLossV4':
             pixel_level_labels_dilated_tensor = pixel_level_labels_dilated_tensor.cuda()
             loss = loss_func(prediction_residues_tensor, pixel_level_labels_dilated_tensor, logger)
         elif loss_func.get_name() == 'SingleClassDiceLoss':
@@ -282,7 +286,7 @@ if __name__ == '__main__':
                                         shuffle=True, num_workers=cfg.train.num_threads)
 
     # define loss function
-    assert cfg.loss.name in ['TTestLoss', 'TTestLossV2', 'TTestLossV3', 'SingleClassDiceLoss', 'SingleClassTverskyLoss']
+    assert cfg.loss.name in ['TTestLoss', 'TTestLossV2', 'TTestLossV3', 'TTestLossV4', 'SingleClassDiceLoss', 'SingleClassTverskyLoss']
     if cfg.loss.name == 'TTestLoss':
         loss_func = TTestLoss(beta=cfg.loss.t_test_loss.beta, lambda_p=cfg.loss.t_test_loss.lambda_p,
                               lambda_n=cfg.loss.t_test_loss.lambda_n)
@@ -291,6 +295,9 @@ if __name__ == '__main__':
                                 lambda_n=cfg.loss.t_test_loss.lambda_n)
     elif cfg.loss.name == 'TTestLossV3':
         loss_func = TTestLossV3(beta=cfg.loss.t_test_loss.beta, lambda_p=cfg.loss.t_test_loss.lambda_p,
+                                lambda_n=cfg.loss.t_test_loss.lambda_n)
+    elif cfg.loss.name == 'TTestLossV4':
+        loss_func = TTestLossV4(beta=cfg.loss.t_test_loss.beta, lambda_p=cfg.loss.t_test_loss.lambda_p,
                                 lambda_n=cfg.loss.t_test_loss.lambda_n)
     elif cfg.loss.name == 'SingleClassDiceLoss':
         loss_func = SingleClassDiceLoss()
