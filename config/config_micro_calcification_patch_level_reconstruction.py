@@ -32,11 +32,19 @@ __C.dataset.augmentation.enable_horizontal_flip = True
 
 # loss
 __C.loss = {}
-__C.loss.name = 'TTestLossV4'  # only 'TTestLoss', 'TTestLossV2', 'TTestLossV3', 'SingleClassDiceLoss', 'SingleClassTverskyLoss', 'TTestLossV4' is supported now
+__C.loss.name = 'TTestLossV4'  # only 'TTestLoss', 'TTestLossV2', 'TTestLossV3', 'TTestLossV4', 'SoftTTestLoss', 'SingleClassDiceLoss', 'SingleClassTverskyLoss' is supported now
+#
 __C.loss.t_test_loss = {}
 __C.loss.t_test_loss.beta = 0.8
 __C.loss.t_test_loss.lambda_p = 1
 __C.loss.t_test_loss.lambda_n = 0.1
+#
+__C.loss.soft_t_test_loss = {}
+__C.loss.soft_t_test_loss.beta = 0.8
+__C.loss.soft_t_test_loss.lambda_p = 1
+__C.loss.soft_t_test_loss.lambda_n = 0.1
+__C.loss.soft_t_test_loss.sp_ratio = 0.01
+#
 __C.loss.tversky_loss = {}
 __C.loss.tversky_loss.alpha = 0.25  # the weight set in tversky loss for focusing on FPs
 
