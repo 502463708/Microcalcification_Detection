@@ -2,6 +2,7 @@
 *.xml
 *.iml
 *.pyc
+*.swp
 
 venv/*
 .idea/*
