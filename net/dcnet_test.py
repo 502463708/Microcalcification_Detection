@@ -5,7 +5,10 @@ from net.dcnet import DCnet
 from torch.autograd import Variable
 
 kMega = 1e6
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
+
 
 def ParseArguments():
     parser = argparse.ArgumentParser()
@@ -17,7 +20,9 @@ def ParseArguments():
 
     parser.add_argument('--batch_size',
                         type=int,
+
                         default=2,
+
                         help='number of patches in each batch')
 
     parser.add_argument('--in_channels',
@@ -27,8 +32,10 @@ def ParseArguments():
 
     parser.add_argument('--num_classes',
                         type=int,
-                        default=2,
-                        help='classes number: either positive or negative')
+
+                        default=1,
+                        help='classes number: for reconstruction is 1')
+
 
     parser.add_argument('--dim_x',
                         type=int,
@@ -56,19 +63,23 @@ def TestDCnet(args):
     model = model.cuda()
     print('Total params: %.2fM' % (sum(p.numel() for p in model.parameters()) / kMega))
 
-    input_tensor = torch.zeros([args.batch_size, args.in_channels, args.dim_y, args.dim_x])
+
+    input_tensor = torch.rand([args.batch_size, args.in_channels, args.dim_y, args.dim_x])
     input_tensor = input_tensor.cuda()
 
-    output_tensor = model(input_tensor)
-    assert output_tensor.shape[0] == args.batch_size
-    assert output_tensor.shape[1] == args.num_classes
+    output_tensor, residue = model(input_tensor)
+    assert output_tensor.size()[0] == args.batch_size
+    assert output_tensor.size()[1] == args.num_classes
+
 
     print("input shape = ", input_tensor.shape)
     print("output shape = ", output_tensor.shape)
 
 
 if __name__ == '__main__':
-    args=ParseArguments()
+
+    args = ParseArguments()
+
 
     for idx in range(args.run_time):
         TestDCnet(args)
