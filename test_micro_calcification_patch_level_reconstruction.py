@@ -1,4 +1,5 @@
 import argparse
+import copy
 import cv2
 import numpy as np
 import os
@@ -33,6 +34,11 @@ def ParseArguments():
                         type=int,
                         default=-1,
                         help='The epoch index of ckpt, set -1 to choose the best ckpt on validation set.')
+    parser.add_argument('--mc_epoch_indexes',
+                        type=int,
+                        default=[410, 420, 430, 440, 450, 460, 470, 480, 490, 500],
+                        help='The epoch ckpt index list for generating uncertainty maps'
+                             'set null list [] to switch off.')
     parser.add_argument('--dataset_type',
                         type=str,
                         default='test',
@@ -71,16 +77,53 @@ def ParseArguments():
     return args
 
 
+def get_net_list(network, ckpt_dir, mc_epoch_indexes, logger):
+    assert len(mc_epoch_indexes) > 0
+
+    net_list = list()
+
+    for mc_epoch_idx in mc_epoch_indexes:
+        net = copy.deepcopy(network)
+        ckpt_path = os.path.join(ckpt_dir, 'net_epoch_{}.pth'.format(mc_epoch_idx))
+        net = torch.nn.DataParallel(net).cuda()
+        net.load_state_dict(torch.load(ckpt_path))
+        net = net.eval()
+        net_list.append(net)
+
+        logger.write_and_print('Load ckpt: {0} for MC dropout...'.format(ckpt_path))
+
+    return net_list
+
+
+def generate_uncertainty_maps(net_list, images_tensor):
+    accumulated_residues_tensor = None
+
+    for net in net_list:
+        _, prediction_residues_tensor = net(images_tensor)
+        if accumulated_residues_tensor is None:
+            accumulated_residues_tensor = prediction_residues_tensor
+        else:
+            accumulated_residues_tensor = torch.cat((accumulated_residues_tensor, prediction_residues_tensor), dim=1)
+
+    uncertainty_maps = accumulated_residues_tensor.var(dim=1)
+    uncertainty_maps_np = uncertainty_maps.cpu().detach().numpy()
+    uncertainty_maps_np = 1 - np.exp(-uncertainty_maps_np)
+
+    return uncertainty_maps_np
+
+
 def save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor, prediction_residues_tensor,
                                       post_process_preds_np, pixel_level_labels_tensor,
-                                      pixel_level_labels_dilated_tensor, filenames, result_flag_list,
-                                      prediction_saving_dir, save_nii=False):
+                                      pixel_level_labels_dilated_tensor, uncertainty_maps_np, filenames,
+                                      result_flag_list, prediction_saving_dir, save_nii=False):
     # convert tensor into numpy and squeeze channel dimension
     images_np = images_tensor.cpu().detach().numpy().squeeze(axis=1)
     reconstructed_images_np = reconstructed_images_tensor.cpu().detach().numpy().squeeze(axis=1)
     prediction_residues_np = prediction_residues_tensor.cpu().detach().numpy().squeeze(axis=1)
     pixel_level_labels_np = pixel_level_labels_tensor.numpy()
     pixel_level_labels_dilated_np = pixel_level_labels_dilated_tensor.numpy()
+
+    save_uncertainty_maps = False if uncertainty_maps_np is None else True
 
     # iterating each image of this batch
     for idx in range(images_np.shape[0]):
@@ -90,14 +133,26 @@ def save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor
         post_process_pred_np = post_process_preds_np[idx, :, :]
         pixel_level_label_np = pixel_level_labels_np[idx, :, :]
         pixel_level_label_dilated_np = pixel_level_labels_dilated_np[idx, :, :]
+        if save_uncertainty_maps:
+            uncertainty_map_np = uncertainty_maps_np[idx, :, :]
+
         filename = filenames[idx]
 
-        stacked_np = np.concatenate((np.expand_dims(image_np, axis=0),
-                                     np.expand_dims(reconstructed_image_np, axis=0),
-                                     np.expand_dims(prediction_residue_np, axis=0),
-                                     np.expand_dims(post_process_pred_np, axis=0),
-                                     np.expand_dims(pixel_level_label_np, axis=0),
-                                     np.expand_dims(pixel_level_label_dilated_np, axis=0)), axis=0)
+        if save_uncertainty_maps:
+            stacked_np = np.concatenate((np.expand_dims(image_np, axis=0),
+                                         np.expand_dims(reconstructed_image_np, axis=0),
+                                         np.expand_dims(prediction_residue_np, axis=0),
+                                         np.expand_dims(post_process_pred_np, axis=0),
+                                         np.expand_dims(pixel_level_label_np, axis=0),
+                                         np.expand_dims(pixel_level_label_dilated_np, axis=0),
+                                         np.expand_dims(uncertainty_map_np, axis=0)), axis=0)
+        else:
+            stacked_np = np.concatenate((np.expand_dims(image_np, axis=0),
+                                         np.expand_dims(reconstructed_image_np, axis=0),
+                                         np.expand_dims(prediction_residue_np, axis=0),
+                                         np.expand_dims(post_process_pred_np, axis=0),
+                                         np.expand_dims(pixel_level_label_np, axis=0),
+                                         np.expand_dims(pixel_level_label_dilated_np, axis=0)), axis=0)
 
         stacked_image = sitk.GetImageFromArray(stacked_np)
 
@@ -107,6 +162,8 @@ def save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor
         post_process_pred_np *= 255
         pixel_level_label_np *= 255
         pixel_level_label_dilated_np *= 255
+        if save_uncertainty_maps:
+            uncertainty_map_np *= 4 * 255
 
         image_np = image_np.astype(np.uint8)
         reconstructed_image_np = reconstructed_image_np.astype(np.uint8)
@@ -114,6 +171,9 @@ def save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor
         post_process_pred_np = post_process_pred_np.astype(np.uint8)
         pixel_level_label_np = pixel_level_label_np.astype(np.uint8)
         pixel_level_label_dilated_np = pixel_level_label_dilated_np.astype(np.uint8)
+        if save_uncertainty_maps:
+            uncertainty_map_np = uncertainty_map_np.astype(np.uint8)
+            uncertainty_map_np = cv2.applyColorMap(uncertainty_map_np, cv2.COLORMAP_JET)
 
         result_flag_2_class_mapping = {0: 'TPs_only', 1: 'FPs_only', 2: 'FNs_only', 3: 'FPs_FNs_both', }
         saving_class = result_flag_2_class_mapping[result_flag_list[idx]]
@@ -135,6 +195,9 @@ def save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor
         cv2.imwrite(os.path.join(prediction_saving_dir, saving_class,
                                  filename.replace('.png', '_pixel_level_dilated_label.png')),
                     pixel_level_label_dilated_np)
+        if save_uncertainty_maps:
+            cv2.imwrite(os.path.join(prediction_saving_dir, saving_class,
+                                     filename.replace('.png', '_uncertainty_map.png')), uncertainty_map_np)
 
     return
 
@@ -165,7 +228,7 @@ def TestMicroCalcificationReconstruction(args):
     logger.write_and_print('Dataset type: {}'.format(args.dataset_type))
 
     # define the network
-    net = VNet2d(num_in_channels=cfg.net.in_channels, num_out_channels=cfg.net.out_channels)
+    network = VNet2d(num_in_channels=cfg.net.in_channels, num_out_channels=cfg.net.out_channels)
 
     # load the specified ckpt
     ckpt_dir = os.path.join(args.model_saving_dir, 'ckpt')
@@ -180,11 +243,20 @@ def TestMicroCalcificationReconstruction(args):
         ckpt_path = os.path.join(ckpt_dir, best_ckpt_filename)
 
     # transfer net into gpu devices
+    net = copy.deepcopy(network)
     net = torch.nn.DataParallel(net).cuda()
     net.load_state_dict(torch.load(ckpt_path))
     net = net.eval()
 
-    logger.write_and_print('Load ckpt: {0}...'.format(ckpt_path))
+    logger.write_and_print('Load ckpt: {0} for evaluating...'.format(ckpt_path))
+
+    # get calculate_uncertainty global variance
+    calculate_uncertainty = True if len(args.mc_epoch_indexes) > 0 else False
+
+    # get net list for imitating MC dropout process
+    net_list = None
+    if calculate_uncertainty:
+        net_list = get_net_list(network, ckpt_dir, args.mc_epoch_indexes, logger)
 
     # create dataset
     dataset = MicroCalcificationDataset(data_root_dir=args.data_root_dir,
@@ -221,6 +293,9 @@ def TestMicroCalcificationReconstruction(args):
         # network forward
         reconstructed_images_tensor, prediction_residues_tensor = net(images_tensor)
 
+        # MC dropout
+        uncertainty_maps_np = generate_uncertainty_maps(net_list, images_tensor) if calculate_uncertainty else None
+
         # evaluation
         post_process_preds_np, calcification_num_batch_level, recall_num_batch_level, FP_num_batch_level, \
         result_flag_list = metrics.metric_batch_level(prediction_residues_tensor, pixel_level_labels_tensor)
@@ -241,8 +316,8 @@ def TestMicroCalcificationReconstruction(args):
 
         save_tensor_in_png_and_nii_format(images_tensor, reconstructed_images_tensor, prediction_residues_tensor,
                                           post_process_preds_np, pixel_level_labels_tensor,
-                                          pixel_level_labels_dilated_tensor, filenames, result_flag_list,
-                                          visualization_saving_dir, save_nii=args.save_nii)
+                                          pixel_level_labels_dilated_tensor, uncertainty_maps_np, filenames,
+                                          result_flag_list, visualization_saving_dir, save_nii=args.save_nii)
 
         logger.flush()
 
