@@ -1,3 +1,4 @@
+import copy
 import cv2
 import numpy as np
 import os
@@ -188,3 +189,38 @@ def get_min_distance(mask, coordinate):
         min_distance = distance_matrix[mask == 1].min()
 
     return min_distance
+
+
+def get_net_list(network, ckpt_dir, mc_epoch_indexes, logger):
+    assert len(mc_epoch_indexes) > 0
+
+    net_list = list()
+
+    for mc_epoch_idx in mc_epoch_indexes:
+        net = copy.deepcopy(network)
+        ckpt_path = os.path.join(ckpt_dir, 'net_epoch_{}.pth'.format(mc_epoch_idx))
+        net = torch.nn.DataParallel(net).cuda()
+        net.load_state_dict(torch.load(ckpt_path))
+        net = net.eval()
+        net_list.append(net)
+
+        logger.write_and_print('Load ckpt: {0} for MC dropout...'.format(ckpt_path))
+
+    return net_list
+
+
+def generate_uncertainty_maps(net_list, images_tensor):
+    accumulated_residues_tensor = None
+
+    for net in net_list:
+        _, prediction_residues_tensor = net(images_tensor)
+        if accumulated_residues_tensor is None:
+            accumulated_residues_tensor = prediction_residues_tensor
+        else:
+            accumulated_residues_tensor = torch.cat((accumulated_residues_tensor, prediction_residues_tensor), dim=1)
+
+    uncertainty_maps = accumulated_residues_tensor.var(dim=1)
+    uncertainty_maps_np = uncertainty_maps.cpu().detach().numpy()
+    uncertainty_maps_np = 1 - np.exp(-uncertainty_maps_np)
+
+    return uncertainty_maps_np
