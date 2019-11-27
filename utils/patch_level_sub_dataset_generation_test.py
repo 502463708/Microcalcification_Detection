@@ -3,7 +3,7 @@ import os
 import shutil
 
 from logger.logger import Logger
-from utils.patch_level_subdataset_generation import filename_list_split, copy_data_from_src_2_dst
+from utils.patch_level_sub_dataset_generation import filename_list_split, copy_data_from_src_2_dst
 
 
 def ParseArguments():
