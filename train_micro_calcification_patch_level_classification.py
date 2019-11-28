@@ -55,7 +55,7 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
     start_time_for_epoch = time()
 
     # iterating through each batch
-    for batch_idx, (images_tensor, pixel_level_labels_tensor, _, image_level_labels_tensor, _, _) in enumerate(
+    for batch_idx, (images_tensor, pixel_level_labels_tensor, _, _, image_level_labels_tensor, _, _) in enumerate(
             data_loader):
 
         # start time of this batch
@@ -245,6 +245,7 @@ if __name__ == '__main__':
                                                  image_channels=cfg.dataset.image_channels,
                                                  cropping_size=cfg.dataset.cropping_size,
                                                  dilation_radius=cfg.dataset.dilation_radius,
+                                                 load_uncertainty_map=cfg.dataset.load_uncertainty_map,
                                                  calculate_micro_calcification_number=cfg.dataset.calculate_micro_calcification_number,
                                                  enable_data_augmentation=cfg.dataset.augmentation.enable_data_augmentation,
                                                  enable_vertical_flip=cfg.dataset.augmentation.enable_vertical_flip,
@@ -261,6 +262,7 @@ if __name__ == '__main__':
                                                    image_channels=cfg.dataset.image_channels,
                                                    cropping_size=cfg.dataset.cropping_size,
                                                    dilation_radius=cfg.dataset.dilation_radius,
+                                                   load_uncertainty_map=cfg.dataset.load_uncertainty_map,
                                                    calculate_micro_calcification_number=cfg.dataset.calculate_micro_calcification_number,
                                                    enable_data_augmentation=False)
 

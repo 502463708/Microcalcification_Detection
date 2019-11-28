@@ -7,16 +7,13 @@ import torch.backends.cudnn as cudnn
 import visdom
 import torch.nn as nn
 
-from common.utils import BatchImageToNumber
 from common.utils import save_best_ckpt
 from config.config_micro_calcification_patch_level_quantity_regression import cfg
 from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
 from metrics.metrics_patch_level_quantity_regression import MetricsImageLEvelQuantityRegression
 from logger.logger import Logger
-from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader
 from time import time
-from skimage import measure
 
 # the environment related global variables are specified here
 #
@@ -62,7 +59,7 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
     # image_tensor, pixel_level_label_tensor, pixel_level_label_dilated_tensor, image_level_label_tensor, \
     #          micro_calcification_number_label_tensor, filename
     for batch_idx, (
-            images_tensor, pixel_level_labels_tensor, _, _, micro_calcification_number_label_tensor, _) in enumerate(
+            images_tensor, pixel_level_labels_tensor, _, _, _, micro_calcification_number_label_tensor, _) in enumerate(
         data_loader):
 
         # start time of this batch
@@ -232,6 +229,7 @@ if __name__ == '__main__':
                                                  image_channels=cfg.dataset.image_channels,
                                                  cropping_size=cfg.dataset.cropping_size,
                                                  dilation_radius=cfg.dataset.dilation_radius,
+                                                 load_uncertainty_map=cfg.dataset.load_uncertainty_map,
                                                  calculate_micro_calcification_number=cfg.dataset.calculate_micro_calcification_number,
                                                  enable_data_augmentation=cfg.dataset.augmentation.enable_data_augmentation,
                                                  enable_vertical_flip=cfg.dataset.augmentation.enable_vertical_flip,
@@ -248,6 +246,7 @@ if __name__ == '__main__':
                                                    image_channels=cfg.dataset.image_channels,
                                                    cropping_size=cfg.dataset.cropping_size,
                                                    dilation_radius=cfg.dataset.dilation_radius,
+                                                   load_uncertainty_map=cfg.dataset.load_uncertainty_map,
                                                    calculate_micro_calcification_number=cfg.dataset.calculate_micro_calcification_number,
                                                    enable_data_augmentation=False)
 
