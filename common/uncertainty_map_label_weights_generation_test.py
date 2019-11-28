@@ -1,11 +1,6 @@
 import argparse
-import copy
-import cv2
-import numpy as np
 import os
-import shutil
 import SimpleITK as sitk
-import torch
 import torch.backends.cudnn as cudnn
 
 from common.utils import get_net_list, generate_uncertainty_maps
@@ -22,10 +17,14 @@ cudnn.benchmark = True
 
 def ParseArguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_root_dir',
+    parser.add_argument('--src_data_root_dir',
+                        type=str,
+                        default='/data/lars/data/Inbreast-microcalcification-datasets-5764-uCs-20191107/Inbreast-patch-level-split-pos2neg-ratio-1-sub-datasets/sub-dataset-1/',
+                        help='Source data dir.')
+    parser.add_argument('--dst_data_root_dir',
                         type=str,
                         default='/data/lars/data/Inbreast-microcalcification-datasets-5764-uCs-20191107/Inbreast-patch-level-split-pos2neg-ratio-1-dataset/',
-                        help='Source data dir.')
+                        help='Destination data dir.')
     parser.add_argument('--model_saving_dir',
                         type=str,
                         default='/data/lars/models/20191108_5764_uCs_patch_level_reconstruction_ttestlossv3_default_dilation_radius_7/',
@@ -49,13 +48,15 @@ def ParseArguments():
     return args
 
 
-def save_uncertainty_maps(uncertainty_maps_np, filenames, prediction_saving_dir, logger):
+def save_uncertainty_maps(uncertainty_maps_np, filenames, positive_patch_results_saving_dir,
+                          negative_patch_results_saving_dir, logger):
     batch_size = uncertainty_maps_np.shape[0]
 
     # iterating each image of this batch
     for idx in range(batch_size):
         uncertainty_map_np = uncertainty_maps_np[idx, :, :]
         filename = filenames[idx]
+        is_positive_patch = True if 'positive' in filename else False
 
         logger.write_and_print(
             'Info for the uncertainty map of image {}: max = {:.4f}, min = {:.4f}'.format(filename,
@@ -63,22 +64,32 @@ def save_uncertainty_maps(uncertainty_maps_np, filenames, prediction_saving_dir,
                                                                                           uncertainty_map_np.min()))
 
         uncertainty_map_image = sitk.GetImageFromArray(uncertainty_map_np)
-        sitk.WriteImage(uncertainty_map_image, os.path.join(prediction_saving_dir, filename.replace('png', 'nii')))
+
+        if is_positive_patch:
+            sitk.WriteImage(uncertainty_map_image,
+                            os.path.join(positive_patch_results_saving_dir, filename.replace('png', 'nii')))
+        else:
+            sitk.WriteImage(uncertainty_map_image,
+                            os.path.join(negative_patch_results_saving_dir, filename.replace('png', 'nii')))
 
     return
 
 
 def TestUncertaintyMapLabelWeightsGeneration(args):
-    prediction_saving_dir = os.path.join(args.data_root_dir, 'uncertainty_maps')
+    positive_patch_results_saving_dir = os.path.join(args.dst_data_root_dir, 'positive_patches', args.dataset_type,
+                                                     'uncertainty_maps')
+    negative_patch_results_saving_dir = os.path.join(args.dst_data_root_dir, 'negative_patches', args.dataset_type,
+                                                     'uncertainty_maps')
 
-    # remove existing dir which has the same name and create clean dir
-    if os.path.exists(prediction_saving_dir):
-        shutil.rmtree(prediction_saving_dir)
-    os.mkdir(prediction_saving_dir)
+    # create dir when it does not exist
+    if not os.path.exists(positive_patch_results_saving_dir):
+        os.mkdir(positive_patch_results_saving_dir)
+    if not os.path.exists(negative_patch_results_saving_dir):
+        os.mkdir(negative_patch_results_saving_dir)
 
     # initialize logger
-    logger = Logger(args.data_root_dir, 'uncertainty.txt')
-    logger.write_and_print('Dataset: {}'.format(args.data_root_dir))
+    logger = Logger(args.src_data_root_dir, 'uncertainty.txt')
+    logger.write_and_print('Dataset: {}'.format(args.src_data_root_dir))
     logger.write_and_print('Dataset type: {}'.format(args.dataset_type))
 
     # define the network
@@ -90,14 +101,14 @@ def TestUncertaintyMapLabelWeightsGeneration(args):
     net_list = get_net_list(network, ckpt_dir, args.mc_epoch_indexes, logger)
 
     # create dataset
-    dataset = MicroCalcificationDataset(data_root_dir=args.data_root_dir,
+    dataset = MicroCalcificationDataset(data_root_dir=args.src_data_root_dir,
                                         mode=args.dataset_type,
                                         enable_random_sampling=False,
                                         pos_to_neg_ratio=cfg.dataset.pos_to_neg_ratio,
                                         image_channels=cfg.dataset.image_channels,
                                         cropping_size=cfg.dataset.cropping_size,
                                         dilation_radius=0,
-                                        calculate_micro_calcification_number=cfg.dataset.calculate_micro_calcification_number,
+                                        calculate_micro_calcification_number=False,
                                         enable_data_augmentation=False)
 
     # create data loader
@@ -115,7 +126,8 @@ def TestUncertaintyMapLabelWeightsGeneration(args):
 
         # imitating MC dropout
         uncertainty_maps_np = generate_uncertainty_maps(net_list, images_tensor)
-        save_uncertainty_maps(uncertainty_maps_np, filenames, prediction_saving_dir, logger)
+        save_uncertainty_maps(uncertainty_maps_np, filenames, positive_patch_results_saving_dir,
+                              negative_patch_results_saving_dir, logger)
 
         logger.write_and_print('Finished evaluating, consuming time = {:.4f}s'.format(time() - start_time_for_batch))
         logger.write_and_print('--------------------------------------------------------------------------------------')
