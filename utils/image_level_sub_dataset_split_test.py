@@ -34,7 +34,7 @@ def ParseArguments():
     os.mkdir(args.dst_data_root_dir)
 
     for sub_dataset_idx in range(args.sub_dataset_number):
-        sub_dataset_name = 'sub_dataset_{}'.format(sub_dataset_idx + 1)
+        sub_dataset_name = 'sub-dataset-{}'.format(sub_dataset_idx + 1)
         sub_dataset_dir = os.path.join(args.dst_data_root_dir, sub_dataset_name)
         os.mkdir(sub_dataset_dir)
 
@@ -60,7 +60,7 @@ def TestImageLevelSubDatasetSplit(args):
         for sub_dataset_idx in range(args.sub_dataset_number):
             sub_filename_list = sub_filename_list_list[sub_dataset_idx]
 
-            sub_dataset_name = 'sub_dataset_{}'.format(sub_dataset_idx + 1)
+            sub_dataset_name = 'sub-dataset-{}'.format(sub_dataset_idx + 1)
             dst_dataset_type_dir = os.path.join(args.dst_data_root_dir, sub_dataset_name, dataset_type)
 
             copy_data_from_src_2_dst(src_dataset_type_dir, dst_dataset_type_dir, sub_filename_list, sub_dataset_idx,
