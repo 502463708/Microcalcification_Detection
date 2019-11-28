@@ -108,6 +108,7 @@ def TestUncertaintyMapLabelWeightsGeneration(args):
                                         image_channels=cfg.dataset.image_channels,
                                         cropping_size=cfg.dataset.cropping_size,
                                         dilation_radius=0,
+                                        load_uncertainty_map=False,
                                         calculate_micro_calcification_number=False,
                                         enable_data_augmentation=False)
 
@@ -115,7 +116,7 @@ def TestUncertaintyMapLabelWeightsGeneration(args):
     data_loader = DataLoader(dataset, batch_size=args.batch_size,
                              shuffle=False, num_workers=cfg.train.num_threads)
 
-    for batch_idx, (images_tensor, _, _, _, _, filenames) in enumerate(data_loader):
+    for batch_idx, (images_tensor, _, _, _, _, _, filenames) in enumerate(data_loader):
         logger.write_and_print('Evaluating batch: {}'.format(batch_idx))
 
         # start time of this batch
