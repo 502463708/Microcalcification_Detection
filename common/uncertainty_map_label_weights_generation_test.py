@@ -77,9 +77,9 @@ def save_uncertainty_maps(uncertainty_maps_np, filenames, positive_patch_results
 
 def TestUncertaintyMapLabelWeightsGeneration(args):
     positive_patch_results_saving_dir = os.path.join(args.dst_data_root_dir, 'positive_patches', args.dataset_type,
-                                                     'uncertainty_maps')
+                                                     'uncertainty-maps')
     negative_patch_results_saving_dir = os.path.join(args.dst_data_root_dir, 'negative_patches', args.dataset_type,
-                                                     'uncertainty_maps')
+                                                     'uncertainty-maps')
 
     # create dir when it does not exist
     if not os.path.exists(positive_patch_results_saving_dir):
