@@ -232,6 +232,7 @@ def TestMicroCalcificationReconstruction(args):
                                         image_channels=cfg.dataset.image_channels,
                                         cropping_size=cfg.dataset.cropping_size,
                                         dilation_radius=args.dilation_radius,
+                                        load_uncertainty_map=False,
                                         calculate_micro_calcification_number=cfg.dataset.calculate_micro_calcification_number,
                                         enable_data_augmentation=False)
 
@@ -246,7 +247,7 @@ def TestMicroCalcificationReconstruction(args):
     recall_num = 0
     FP_num = 0
 
-    for batch_idx, (images_tensor, pixel_level_labels_tensor, pixel_level_labels_dilated_tensor,
+    for batch_idx, (images_tensor, pixel_level_labels_tensor, pixel_level_labels_dilated_tensor, _,
                     image_level_labels_tensor, _, filenames) in enumerate(data_loader):
         logger.write_and_print('Evaluating batch: {}'.format(batch_idx))
 

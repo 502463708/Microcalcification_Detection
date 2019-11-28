@@ -102,6 +102,7 @@ def TestMicroCalcificationPatchLevelQuantityRegression(args):
                                         image_channels=cfg.dataset.image_channels,
                                         cropping_size=cfg.dataset.cropping_size,
                                         dilation_radius=cfg.dataset.dilation_radius,
+                                        load_uncertainty_map=False,
                                         calculate_micro_calcification_number=cfg.dataset.calculate_micro_calcification_number,
                                         enable_data_augmentation=False)
 
@@ -117,7 +118,7 @@ def TestMicroCalcificationPatchLevelQuantityRegression(args):
     under_pred_epoch_level = 0
 
     for batch_idx, (
-            images_tensor, pixel_level_labels_tensor, _, image_level_labels_tensor,
+            images_tensor, pixel_level_labels_tensor, _, _, image_level_labels_tensor,
             micro_calcification_number_label_tensor,
             filenames) in enumerate(
         data_loader):
