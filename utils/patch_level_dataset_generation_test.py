@@ -10,12 +10,12 @@ def ParseArguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--src_data_root_dir',
                         type=str,
-                        default='/data/lars/data/Inbreast-microcalcification-datasets-20191105/Inbreast-radiograph-level-roi-extracted-data-split-dataset/',
+                        default='/data/lars/data/Inbreast-microcalcification-datasets-5764-uCs-20191107/Inbreast-radiograph-level-roi-extracted-data-split-sub-datasets/sub-dataset-2/',
                         help='The source data root dir.')
 
     parser.add_argument('--dst_data_root_dir',
                         type=str,
-                        default='/data/lars/data/Inbreast-microcalcification-datasets-20191105/Inbreast-patch-level-split-dataset/',
+                        default='/data/lars/data/Inbreast-microcalcification-datasets-5764-uCs-20191107/Inbreast-patch-level-split-sub-datasets/sub-dataset-2/',
                         help='The destination data root dir.')
 
     parser.add_argument('--patch_size',
@@ -30,17 +30,17 @@ def ParseArguments():
 
     parser.add_argument('--training_area_threshold',
                         type=float,
-                        default=0.6,
+                        default=0.01,
                         help='The maximum background area ratio endurance for training set.')
 
     parser.add_argument('--validation_area_threshold',
                         type=float,
-                        default=0.6,
+                        default=0.01,
                         help='The maximum background area ratio endurance for validation set.')
 
     parser.add_argument('--test_area_threshold',
                         type=float,
-                        default=0.1,
+                        default=0.01,
                         help='The maximum background area ratio endurance for test set.')
 
     args = parser.parse_args()

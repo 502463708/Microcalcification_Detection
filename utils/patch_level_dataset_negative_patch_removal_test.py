@@ -10,12 +10,12 @@ def ParseArguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--src_data_root_dir',
                         type=str,
-                        default='/data/lars/data/Inbreast-microcalcification-datasets-20191105/Inbreast-patch-level-split-dataset/',
+                        default='/data/lars/data/Inbreast-microcalcification-datasets-5764-uCs-20191107/Inbreast-patch-level-split-sub-datasets/sub-dataset-2/',
                         help='Source data root dir.')
 
     parser.add_argument('--dst_data_root_dir',
                         type=str,
-                        default='/data/lars/data/Inbreast-microcalcification-datasets-20191105/Inbreast-patch-level-split-pos2neg-ratio-1-dataset/',
+                        default='/data/lars/data/Inbreast-microcalcification-datasets-5764-uCs-20191107/Inbreast-patch-level-split-pos2neg-ratio-1-sub-datasets/sub-dataset-2/',
                         help='Destination data root dir.')
 
     parser.add_argument('--random_seed',
