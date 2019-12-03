@@ -18,6 +18,7 @@ from loss.t_test_loss import TTestLoss
 from loss.t_test_loss_v2 import TTestLossV2
 from loss.t_test_loss_v3 import TTestLossV3
 from loss.t_test_loss_v4 import TTestLossV4
+from loss.uncertainty_t_test_loss_v1 import UncertaintyTTestLossV1
 from torch.utils.data import DataLoader
 from time import time
 
@@ -97,6 +98,11 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
         elif loss_func.get_name() == 'SingleClassTverskyLoss':
             pixel_level_labels_dilated_tensor = pixel_level_labels_dilated_tensor.cuda()
             loss = loss_func(prediction_residues_tensor, pixel_level_labels_dilated_tensor, logger)
+        elif loss_func.get_name() == 'UncertaintyTTestLossV1':
+            pixel_level_labels_dilated_tensor = pixel_level_labels_dilated_tensor.cuda()
+            uncertainty_maps_tensor = uncertainty_maps_tensor.cuda()
+            loss = loss_func(prediction_residues_tensor, pixel_level_labels_dilated_tensor, uncertainty_maps_tensor,
+                             logger)
 
         loss_for_each_batch_list.append(loss.item())
 
@@ -293,7 +299,7 @@ if __name__ == '__main__':
 
     # define loss function
     assert cfg.loss.name in ['TTestLoss', 'TTestLossV2', 'TTestLossV3', 'TTestLossV4', 'SoftTTestLoss',
-                             'SingleClassDiceLoss', 'SingleClassTverskyLoss']
+                             'SingleClassDiceLoss', 'SingleClassTverskyLoss', 'UncertaintyTTestLossV1']
     if cfg.loss.name == 'TTestLoss':
         loss_func = TTestLoss(beta=cfg.loss.t_test_loss.beta, lambda_p=cfg.loss.t_test_loss.lambda_p,
                               lambda_n=cfg.loss.t_test_loss.lambda_n)
@@ -314,6 +320,14 @@ if __name__ == '__main__':
         loss_func = SingleClassDiceLoss()
     elif cfg.loss.name == 'SingleClassTverskyLoss':
         loss_func = SingleClassTverskyLoss(cfg.loss.tversky_loss.alpha)
+    elif cfg.loss.name == 'UncertaintyTTestLossV1':
+        loss_func = UncertaintyTTestLossV1(beta=cfg.loss.uncertainty_t_test_loss_v1.beta,
+                                           lambda_p=cfg.loss.uncertainty_t_test_loss_v1.lambda_p,
+                                           lambda_n=cfg.loss.uncertainty_t_test_loss_v1.lambda_n,
+                                           u_low=cfg.loss.uncertainty_t_test_loss_v1.u_low,
+                                           u_up=cfg.loss.uncertainty_t_test_loss_v1.u_up,
+                                           w_low=cfg.loss.uncertainty_t_test_loss_v1.w_low,
+                                           w_up=cfg.loss.uncertainty_t_test_loss_v1.w_up)
 
     # setup optimizer
     optimizer = torch.optim.Adam(net.parameters(), lr=cfg.lr_scheduler.lr)
