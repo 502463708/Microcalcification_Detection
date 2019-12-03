@@ -198,10 +198,11 @@ def UncertaintySTA(args):
         fn_uncertainty_batch = uncertainty_maps[fn_location == 1]
         fn_uncertainty_distr_batch, _ = np.histogram(fn_uncertainty_batch, bins=args.bins, range=(0, 0.2))
         fn_uncertainty_in_dataset += fn_uncertainty_distr_batch
+
+    # debug only
     print(all_positive_uncertainty_in_dataset[0:5])
     print(tp_uncertainty_in_dataset[0:5])
     print(fn_uncertainty_in_dataset[0:5])
-
 
     all_positive_uncertainty_in_dataset[all_positive_uncertainty_in_dataset > 2000] = 2000
     tp_uncertainty_in_dataset[tp_uncertainty_in_dataset > 2000] = 2000
