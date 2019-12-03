@@ -3,38 +3,41 @@ import os
 import shutil
 
 from logger.logger import Logger
-from utils.patch_level_sub_dataset_generation import filename_list_split, copy_data_from_src_2_dst
+from utils.patch_level_sub_dataset_generation import get_sub_dataset_filename_list, copy_data_from_src_2_dst
 
 
 def ParseArguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--src_data_root_dir',
+    parser.add_argument('--src_patch_level_data_root_dir',
                         type=str,
                         default='/data/lars/data/Inbreast-microcalcification-datasets-5764-uCs-20191107/Inbreast-patch-level-split-pos2neg-ratio-1-dataset/',
-                        help='Source data dir.')
-    parser.add_argument('--sub_dataset_number',
-                        type=int,
-                        default=2,
-                        help='The number of the sub dataset gonna be created.')
+                        help='Source dir of patch-level pos-2-neg ratio 1:1 dataset.')
+    parser.add_argument('--src_radiograph_level_sub_datasets_root_dir',
+                        type=str,
+                        default='/data/lars/data/Inbreast-microcalcification-datasets-5764-uCs-20191107/Inbreast-radiograph-level-roi-extracted-data-split-sub-datasets/',
+                        help='Source dir of radiograph-level sub datasets.')
     parser.add_argument('--dst_data_root_dir',
                         type=str,
                         default='/data/lars/data/Inbreast-microcalcification-datasets-5764-uCs-20191107/Inbreast-patch-level-split-pos2neg-ratio-1-sub-datasets/',
                         help='Destination data dir.')
-    parser.add_argument('--random_seed',
-                        type=int,
-                        default=0,
-                        help='Set random seed for reduplicating the results.'
-                             '-1 -> do not set random seed.')
+
     args = parser.parse_args()
 
-    assert os.path.exists(args.src_data_root_dir), 'Source data root dir does not exist.'
+    assert os.path.exists(args.src_patch_level_data_root_dir), \
+        'Source data root dir does not exist: {}.'.format(args.src_patch_level_data_root_dir)
+    assert os.path.exists(args.src_radiograph_level_sub_datasets_root_dir), \
+        'Source data root dir does not exist: {}.'.format(args.src_radiograph_level_sub_datasets_root_dir)
 
     if os.path.exists(args.dst_data_root_dir):
         shutil.rmtree(args.dst_data_root_dir)
     os.mkdir(args.dst_data_root_dir)
 
-    for sub_dataset_idx in range(args.sub_dataset_number):
-        sub_dataset_name = 'sub_dataset_{}'.format(sub_dataset_idx + 1)
+    # calculate sub_dataset_number based on src_radiograph_level_sub_datasets_root_dir
+    sub_dataset_number = len([lists for lists in os.listdir(args.src_radiograph_level_sub_datasets_root_dir) if
+                              os.path.isdir(os.path.join(args.src_radiograph_level_sub_datasets_root_dir, lists))])
+
+    for sub_dataset_idx in range(sub_dataset_number):
+        sub_dataset_name = 'sub-dataset-{}'.format(sub_dataset_idx + 1)
         sub_dataset_dir = os.path.join(args.dst_data_root_dir, sub_dataset_name)
         os.mkdir(sub_dataset_dir)
 
@@ -54,21 +57,32 @@ def ParseArguments():
 def TestPatchLevelSubDatasetGeneration(args):
     # set up logger
     logger = Logger(args.dst_data_root_dir)
+
+    # calculate sub_dataset_number based on src_radiograph_level_sub_datasets_root_dir
+    sub_dataset_number = len([lists for lists in os.listdir(args.src_radiograph_level_sub_datasets_root_dir) if
+                              os.path.isdir(os.path.join(args.src_radiograph_level_sub_datasets_root_dir, lists))])
+
     for patch_type in ['positive_patches', 'negative_patches']:
 
         for dataset_type in ['training', 'validation', 'test']:
-            src_dataset_type_dir = os.path.join(args.src_data_root_dir, patch_type, dataset_type)
-            sub_filename_list_list = filename_list_split(src_dataset_type_dir, args.sub_dataset_number, patch_type,
-                                                         args.random_seed, logger=logger)
-            assert len(sub_filename_list_list) == args.sub_dataset_number
 
-            for sub_dataset_idx in range(args.sub_dataset_number):
-                sub_filename_list = sub_filename_list_list[sub_dataset_idx]
+            for sub_dataset_idx in range(sub_dataset_number):
+                sub_dataset_name = 'sub-dataset-{}'.format(sub_dataset_idx + 1)
 
-                sub_dataset_name = 'sub_dataset_{}'.format(sub_dataset_idx + 1)
-                dst_dataset_type_dir = os.path.join(args.dst_data_root_dir, sub_dataset_name, patch_type, dataset_type)
+                src_patch_level_dataset_type_dir = os.path.join(args.src_patch_level_data_root_dir, patch_type,
+                                                                dataset_type)
+                src_radiograph_level_dataset_type_dir = os.path.join(args.src_radiograph_level_sub_datasets_root_dir,
+                                                                     sub_dataset_name, dataset_type)
+                dst_patch_level_dataset_type_dir = os.path.join(args.dst_data_root_dir, sub_dataset_name, patch_type,
+                                                                dataset_type)
 
-                copy_data_from_src_2_dst(src_dataset_type_dir, dst_dataset_type_dir, sub_filename_list, sub_dataset_idx,
+                sub_patch_level_filename_list = get_sub_dataset_filename_list(src_patch_level_dataset_type_dir,
+                                                                              src_radiograph_level_dataset_type_dir,
+                                                                              patch_type, dataset_type, sub_dataset_idx,
+                                                                              logger=None)
+
+                copy_data_from_src_2_dst(src_patch_level_dataset_type_dir, dst_patch_level_dataset_type_dir,
+                                         sub_patch_level_filename_list, sub_dataset_idx,
                                          dataset_type, patch_type, logger=logger)
     return
 
