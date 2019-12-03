@@ -1,6 +1,7 @@
 import argparse
 import os
 import SimpleITK as sitk
+import sys
 import torch.backends.cudnn as cudnn
 
 from common.utils import get_net_list, generate_uncertainty_maps
@@ -10,6 +11,8 @@ from logger.logger import Logger
 from net.vnet2d_v2 import VNet2d
 from torch.utils.data import DataLoader
 from time import time
+
+sys.path.append(os.path.dirname(os.getcwd()))
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 cudnn.benchmark = True

@@ -1,9 +1,7 @@
 import argparse
-import cv2
 import numpy as np
 import os
-import shutil
-import SimpleITK as sitk
+import sys
 import torch
 import torch.backends.cudnn as cudnn
 import matplotlib.pyplot as plt
@@ -14,6 +12,8 @@ from metrics.metrics_patch_level_reconstruction import MetricsReconstruction
 from net.vnet2d_v2 import VNet2d
 from torch.utils.data import DataLoader
 from time import time
+
+sys.path.append(os.path.dirname(os.getcwd()))
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 cudnn.benchmark = True
