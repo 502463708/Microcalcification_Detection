@@ -62,10 +62,6 @@ class UncertaintyTTestLossV2(nn.Module):
         positive_residue_pixels = torch.masked_select(residues, positive_pixel_idx)
         negative_residue_pixels = torch.masked_select(residues, negative_pixel_idx)
 
-        # split uncertainty_maps into positive and negative one
-        # positive_uncertainty_maps = torch.masked_select(uncertainty_maps, positive_pixel_idx)
-        negative_uncertainty_maps = torch.masked_select(uncertainty_maps, negative_pixel_idx)
-
         loss = torch.FloatTensor([0]).cuda()
 
         if positive_residue_pixels.shape[0] > 0:
@@ -77,14 +73,7 @@ class UncertaintyTTestLossV2(nn.Module):
                 loss += self.lambda_n * var_residue_pixels_positive
 
         if negative_residue_pixels.shape[0] > 0:
-            # generate negative_weights based on negative_uncertainty_maps
-            negative_uncertainty_maps_lower_idx = negative_uncertainty_maps < self.u_low
-            negative_uncertainty_maps_upper_idx = negative_uncertainty_maps > self.u_up
-            negative_weights = self.k * negative_uncertainty_maps + self.b
-            negative_weights[negative_uncertainty_maps_lower_idx] = 1
-            negative_weights[negative_uncertainty_maps_upper_idx] = self.w_low
-
-            mean_residue_pixels_negative = (negative_residue_pixels * negative_weights).mean()
+            mean_residue_pixels_negative = negative_residue_pixels.mean()
             loss += mean_residue_pixels_negative
             # calculate variance only when the number of the negative pixels > 1
             if negative_residue_pixels.shape[0] > 1:
