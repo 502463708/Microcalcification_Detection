@@ -54,13 +54,14 @@ class UncertaintyTTestLossV2(nn.Module):
         positive_pixel_idx = pixel_level_labels.bool()
         negative_pixel_idx = ~positive_pixel_idx
 
-        # select the pixels with relatively high uncertainty
-        uncertainty_pixel_idx = uncertainty_maps >= self.uncertainty_threshold
-        negative_pixel_idx = negative_pixel_idx & uncertainty_pixel_idx
+        # neglect the pixels with relatively high uncertainty
+        certainty_pixel_idx = uncertainty_maps < self.uncertainty_threshold
+        certainty_negative_pixel_idx = negative_pixel_idx & certainty_pixel_idx
+        uncertainty_negative_pixel_num = negative_pixel_idx.sum().item() - certainty_negative_pixel_idx.sum().item()
 
         # split residues into positive and negative one
         positive_residue_pixels = torch.masked_select(residues, positive_pixel_idx)
-        negative_residue_pixels = torch.masked_select(residues, negative_pixel_idx)
+        negative_residue_pixels = torch.masked_select(residues, certainty_negative_pixel_idx)
 
         loss = torch.FloatTensor([0]).cuda()
 
@@ -80,9 +81,10 @@ class UncertaintyTTestLossV2(nn.Module):
                 var_residue_pixels_negative = negative_residue_pixels.var()
                 loss += self.lambda_p * var_residue_pixels_negative
 
-        log_message = 'num_p: {}, num_n: {}, m_r_p: {:.4f}, m_r_n: {:.4f}, v_r_p: {:.4f}, v_r_n: {:.4f}, loss: {:.4f}'.format(
+        log_message = 'num_p: {}, num_certainty_n: {}, num_uncertainty_n: {}, m_r_p: {:.4f}, m_r_n: {:.4f}, v_r_p: {:.4f}, v_r_n: {:.4f}, loss: {:.4f}'.format(
             positive_residue_pixels.shape[0],
             negative_residue_pixels.shape[0],
+            uncertainty_negative_pixel_num,
             mean_residue_pixels_positive.item() if positive_residue_pixels.shape[0] > 0 else -1,
             mean_residue_pixels_negative.item() if negative_residue_pixels.shape[0] > 0 else -1,
             var_residue_pixels_positive.item() if positive_residue_pixels.shape[0] > 1 else -1,
