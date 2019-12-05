@@ -2,11 +2,11 @@ import argparse
 import os
 import sys
 
+sys.path.append(os.path.dirname(os.getcwd()))
+
 from config.config_micro_calcification_patch_level_reconstruction import cfg
 from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
 from torch.utils.data import DataLoader
-
-sys.path.append(os.path.dirname(os.getcwd()))
 
 
 def ParseArguments():

@@ -8,6 +8,8 @@ import torch
 import torch.backends.cudnn as cudnn
 import matplotlib.pyplot as plt
 
+sys.path.append(os.path.dirname(os.getcwd()))
+
 from common.utils import get_net_list, generate_uncertainty_maps
 from config.config_micro_calcification_patch_level_reconstruction import cfg
 from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
@@ -15,8 +17,6 @@ from logger.logger import Logger
 from metrics.metrics_patch_level_reconstruction import MetricsReconstruction
 from net.vnet2d_v2 import VNet2d
 from torch.utils.data import DataLoader
-
-sys.path.append(os.path.dirname(os.getcwd()))
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0, 1, 2, 3'
 cudnn.benchmark = True
