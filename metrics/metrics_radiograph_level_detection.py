@@ -178,7 +178,7 @@ class MetricsRadiographLevelDetection(object):
         residue_mask = np.zeros_like(processed_residue_radiograph_np)
         residue_mask[processed_residue_radiograph_np > 0] = 1
         connected_components = measure.label(residue_mask)
-        props = measure.regionprops(connected_components, coordinates='rc')
+        props = measure.regionprops(connected_components)
 
         connected_idx = 0
         if len(props) > 0:

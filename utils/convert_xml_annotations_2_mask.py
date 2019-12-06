@@ -151,7 +151,7 @@ def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename
 
     # analyse the connected components for calcification_mask_np
     calcification_connected_components = measure.label(input=calcification_mask_np, connectivity=2)
-    calcification_connected_component_props = measure.regionprops(calcification_connected_components, coordinates='rc')
+    calcification_connected_component_props = measure.regionprops(calcification_connected_components)
 
     for prop in calcification_connected_component_props:
         # a large calcification is gonna be picked up as an outlier calcification
@@ -172,8 +172,7 @@ def generate_label_from_xml(src_data_root_dir, dst_data_root_dir, image_filename
     if other_lesion_mask_np.max() > 0:
         # analyse the connected components for calcification_mask_np
         calcification_connected_components = measure.label(input=calcification_mask_np, connectivity=2)
-        calcification_connected_component_props = measure.regionprops(calcification_connected_components,
-                                                                      coordinates='rc')
+        calcification_connected_component_props = measure.regionprops(calcification_connected_components)
 
         for prop in calcification_connected_component_props:
             min_distance = get_min_distance(other_lesion_mask_np, prop.centroid)

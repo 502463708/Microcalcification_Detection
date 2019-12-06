@@ -205,7 +205,7 @@ def post_process_residue_radiograph(raw_residue_radiograph_np, pixel_level_label
     # generate information for each connected component on processed_residue_radiograph_np
     residue_mask_radiograph_np[processed_residue_radiograph_np > 0] = 1
     connected_components = measure.label(residue_mask_radiograph_np)
-    props = measure.regionprops(connected_components, coordinates='rc')
+    props = measure.regionprops(connected_components)
 
     # iterate each connected component
     connected_idx = 0
@@ -253,7 +253,7 @@ def generate_coordinate_and_score_list(images_tensor, classification_net, pixel_
 
     # generate information of each connected component
     connected_components = measure.label(mask_np)
-    props = measure.regionprops(connected_components, coordinates='rc')
+    props = measure.regionprops(connected_components)
 
     # created for saving the coordinates and the detected score for this connected component
     coordinate_list = list()
