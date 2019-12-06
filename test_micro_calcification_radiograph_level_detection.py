@@ -548,7 +548,7 @@ def TestMicroCalcificationRadiographLevelDetection(args):
         # logging
         # print logging information of this radiograph
         logger.write_and_print(
-            'Finish evaluating radiograph: {}, consuming time: {:.4f}s'.format(radiograph_idx,
+            'Finish evaluating radiograph: {}, consuming time: {:.4f}s'.format(radiograph_idx + 1,
                                                                                time() - start_time_for_radiograph))
         detection_result_record_radiograph_level.print(logger)
         logger.write_and_print('--------------------------------------------------------------------------------------')
