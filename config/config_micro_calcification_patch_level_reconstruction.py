@@ -33,9 +33,9 @@ __C.dataset.augmentation.enable_horizontal_flip = True
 
 # loss
 __C.loss = {}
-__C.loss.name = 'UncertaintyTTestLossV2'  # only 'TTestLoss', 'TTestLossV2', 'TTestLossV3', 'TTestLossV4',
-# 'SoftTTestLoss', 'SingleClassDiceLoss', 'SingleClassTverskyLoss', 'UncertaintyTTestLossV1' , 'UncertaintyTTestLossV2'
-# is supported now
+__C.loss.name = 'UncertaintyTTestLossV3'  # only 'TTestLoss', 'TTestLossV2', 'TTestLossV3', 'TTestLossV4',
+# 'SoftTTestLoss', 'SingleClassDiceLoss', 'SingleClassTverskyLoss', 'UncertaintyTTestLossV1' , 'UncertaintyTTestLossV2',
+# 'UncertaintyTTestLossV3' is supported now
 #
 __C.loss.t_test_loss = {}
 __C.loss.t_test_loss.beta = 0.8
@@ -65,6 +65,12 @@ __C.loss.uncertainty_t_test_loss_v2.beta = 0.8
 __C.loss.uncertainty_t_test_loss_v2.lambda_p = 1
 __C.loss.uncertainty_t_test_loss_v2.lambda_n = 0.1
 __C.loss.uncertainty_t_test_loss_v2.uncertainty_threshold = 0.02
+#
+__C.loss.uncertainty_t_test_loss_v3 = {}
+__C.loss.uncertainty_t_test_loss_v3.beta = 0.8
+__C.loss.uncertainty_t_test_loss_v3.lambda_p = 1
+__C.loss.uncertainty_t_test_loss_v3.lambda_n = 0.1
+__C.loss.uncertainty_t_test_loss_v3.uncertainty_threshold = 0.02
 
 # net
 __C.net = {}
