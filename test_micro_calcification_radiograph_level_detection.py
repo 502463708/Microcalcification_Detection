@@ -82,6 +82,10 @@ def ParseArguments():
                         type=bool,
                         default=True,
                         help='The bool variable for slacking recall metric standard.')
+    parser.add_argument('--save_visualization_results',
+                        type=bool,
+                        default=False,
+                        help='The bool variable to determine whether save the visualization results.')
 
     args = parser.parse_args()
 
@@ -232,12 +236,13 @@ def generate_coordinate_and_score_list(images_tensor, classification_net, pixel_
     # mode must be either 'detected' or 'annotated'
     assert mode in ['detected', 'annotated']
 
-    # make the related dirs
-    patch_level_root_saving_dir = os.path.join(saving_dir, filename[:-4])
-    patch_visualization_dir = os.path.join(patch_level_root_saving_dir, mode)
-    if not os.path.exists(patch_level_root_saving_dir):
-        os.mkdir(patch_level_root_saving_dir)
-    os.mkdir(patch_visualization_dir)
+    if saving_dir is not None:
+        # make the related dirs
+        patch_level_root_saving_dir = os.path.join(saving_dir, filename[:-4])
+        patch_visualization_dir = os.path.join(patch_level_root_saving_dir, mode)
+        if not os.path.exists(patch_level_root_saving_dir):
+            os.mkdir(patch_level_root_saving_dir)
+        os.mkdir(patch_visualization_dir)
 
     height, width = processed_residue_radiograph_np.shape
 
@@ -299,76 +304,81 @@ def generate_coordinate_and_score_list(images_tensor, classification_net, pixel_
             score = positive_prob * residue_mean
             score_list.append(score)
 
-            # process the visualization results
-            image_patch_np = copy.copy(patch_image_tensor.cpu().detach().numpy().squeeze())
-            #
-            pixel_level_label_patch_np = copy.copy(
-                pixel_level_label_np[start_row_idx:end_row_idx, start_column_idx:end_column_idx])
-            #
-            raw_residue_patch_np = copy.copy(
-                raw_residue_radiograph_np[start_row_idx:end_row_idx, start_column_idx:end_column_idx])
-            #
-            processed_residue_patch_np = copy.copy(
-                processed_residue_radiograph_np[start_row_idx:end_row_idx, start_column_idx:end_column_idx])
-            #
-            stacked_np = np.concatenate((np.expand_dims(image_patch_np, axis=0),
-                                         np.expand_dims(
-                                             pixel_level_label_patch_np, axis=0),
-                                         np.expand_dims(
-                                             raw_residue_patch_np, axis=0),
-                                         np.expand_dims(
-                                             processed_residue_patch_np, axis=0)), axis=0)
-            stacked_image = sitk.GetImageFromArray(stacked_np)
-            #
-            image_patch_np *= 255
-            raw_residue_patch_np *= 255
-            processed_residue_patch_np *= 255
-            #
-            pixel_level_label_patch_np[pixel_level_label_patch_np == 1] = 255
-            pixel_level_label_patch_np[pixel_level_label_patch_np == 2] = 165
-            pixel_level_label_patch_np[pixel_level_label_patch_np == 3] = 85
-            #
-            image_patch_np = image_patch_np.astype(np.uint8)
-            raw_residue_patch_np = raw_residue_patch_np.astype(np.uint8)
-            processed_residue_patch_np = processed_residue_patch_np.astype(np.uint8)
-            pixel_level_label_patch_np = pixel_level_label_patch_np.astype(np.uint8)
-            #
-            prob_saving_image = np.zeros((patch_size[0], patch_size[1], 3), np.uint8)
-            mean_residue_saving_image = np.zeros((patch_size[0], patch_size[1], 3), np.uint8)
-            score_saving_image = np.zeros((patch_size[0], patch_size[1], 3), np.uint8)
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            cv2.putText(prob_saving_image, '{:.4f}'.format(positive_prob), (0, 64), font, 1, (0, 255, 255), 2)
-            cv2.putText(mean_residue_saving_image, '{:.4f}'.format(residue_mean), (0, 64), font, 1, (255, 0, 255), 2)
-            cv2.putText(score_saving_image, '{:.4f}'.format(positive_prob * residue_mean), (0, 64), font, 1,
-                        (255, 255, 0), 2)
+            if saving_dir is not None:
+                # process the visualization results
+                image_patch_np = copy.copy(patch_image_tensor.cpu().detach().numpy().squeeze())
+                #
+                pixel_level_label_patch_np = copy.copy(
+                    pixel_level_label_np[start_row_idx:end_row_idx, start_column_idx:end_column_idx])
+                #
+                raw_residue_patch_np = copy.copy(
+                    raw_residue_radiograph_np[start_row_idx:end_row_idx, start_column_idx:end_column_idx])
+                #
+                processed_residue_patch_np = copy.copy(
+                    processed_residue_radiograph_np[start_row_idx:end_row_idx, start_column_idx:end_column_idx])
+                #
+                stacked_np = np.concatenate((np.expand_dims(image_patch_np, axis=0),
+                                             np.expand_dims(
+                                                 pixel_level_label_patch_np, axis=0),
+                                             np.expand_dims(
+                                                 raw_residue_patch_np, axis=0),
+                                             np.expand_dims(
+                                                 processed_residue_patch_np, axis=0)), axis=0)
+                stacked_image = sitk.GetImageFromArray(stacked_np)
+                #
+                image_patch_np *= 255
+                raw_residue_patch_np *= 255
+                processed_residue_patch_np *= 255
+                #
+                pixel_level_label_patch_np[pixel_level_label_patch_np == 1] = 255
+                pixel_level_label_patch_np[pixel_level_label_patch_np == 2] = 165
+                pixel_level_label_patch_np[pixel_level_label_patch_np == 3] = 85
+                #
+                image_patch_np = image_patch_np.astype(np.uint8)
+                raw_residue_patch_np = raw_residue_patch_np.astype(np.uint8)
+                processed_residue_patch_np = processed_residue_patch_np.astype(np.uint8)
+                pixel_level_label_patch_np = pixel_level_label_patch_np.astype(np.uint8)
+                #
+                prob_saving_image = np.zeros((patch_size[0], patch_size[1], 3), np.uint8)
+                mean_residue_saving_image = np.zeros((patch_size[0], patch_size[1], 3), np.uint8)
+                score_saving_image = np.zeros((patch_size[0], patch_size[1], 3), np.uint8)
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                cv2.putText(prob_saving_image, '{:.4f}'.format(positive_prob), (0, 64), font, 1, (0, 255, 255), 2)
+                cv2.putText(mean_residue_saving_image, '{:.4f}'.format(residue_mean), (0, 64), font, 1, (255, 0, 255),
+                            2)
+                cv2.putText(score_saving_image, '{:.4f}'.format(positive_prob * residue_mean), (0, 64), font, 1,
+                            (255, 255, 0), 2)
 
-            # saving
-            cv2.imwrite(os.path.join(patch_visualization_dir,
-                                     filename.replace('.png', '_patch_{:0>3d}_image.png'.format(connected_idx))),
-                        image_patch_np)
-            cv2.imwrite(os.path.join(patch_visualization_dir,
-                                     filename.replace('.png', '_patch_{:0>3d}_mask.png'.format(connected_idx))),
-                        pixel_level_label_patch_np)
-            cv2.imwrite(os.path.join(patch_visualization_dir,
-                                     filename.replace('.png', '_patch_{:0>3d}_raw_residue.png'.format(connected_idx))),
-                        raw_residue_patch_np)
-            cv2.imwrite(os.path.join(patch_visualization_dir,
-                                     filename.replace('.png',
-                                                      '_patch_{:0>3d}_processed_residue.png'.format(connected_idx))),
-                        processed_residue_patch_np)
-            cv2.imwrite(os.path.join(patch_visualization_dir,
-                                     filename.replace('.png',
-                                                      '_patch_{:0>3d}_positive_prob.png'.format(connected_idx))),
-                        prob_saving_image)
-            cv2.imwrite(os.path.join(patch_visualization_dir,
-                                     filename.replace('.png', '_patch_{:0>3d}_mean_residue.png'.format(connected_idx))),
-                        mean_residue_saving_image)
-            cv2.imwrite(os.path.join(patch_visualization_dir,
-                                     filename.replace('.png', '_patch_{:0>3d}_score.png'.format(connected_idx))),
-                        score_saving_image)
-            sitk.WriteImage(stacked_image,
-                            os.path.join(patch_visualization_dir,
-                                         filename.replace('.png', '_patch_{:0>3d}.nii'.format(connected_idx))))
+                # saving
+                cv2.imwrite(os.path.join(patch_visualization_dir,
+                                         filename.replace('.png', '_patch_{:0>3d}_image.png'.format(connected_idx))),
+                            image_patch_np)
+                cv2.imwrite(os.path.join(patch_visualization_dir,
+                                         filename.replace('.png', '_patch_{:0>3d}_mask.png'.format(connected_idx))),
+                            pixel_level_label_patch_np)
+                cv2.imwrite(os.path.join(patch_visualization_dir,
+                                         filename.replace('.png',
+                                                          '_patch_{:0>3d}_raw_residue.png'.format(connected_idx))),
+                            raw_residue_patch_np)
+                cv2.imwrite(os.path.join(patch_visualization_dir,
+                                         filename.replace('.png',
+                                                          '_patch_{:0>3d}_processed_residue.png'.format(
+                                                              connected_idx))),
+                            processed_residue_patch_np)
+                cv2.imwrite(os.path.join(patch_visualization_dir,
+                                         filename.replace('.png',
+                                                          '_patch_{:0>3d}_positive_prob.png'.format(connected_idx))),
+                            prob_saving_image)
+                cv2.imwrite(os.path.join(patch_visualization_dir,
+                                         filename.replace('.png',
+                                                          '_patch_{:0>3d}_mean_residue.png'.format(connected_idx))),
+                            mean_residue_saving_image)
+                cv2.imwrite(os.path.join(patch_visualization_dir,
+                                         filename.replace('.png', '_patch_{:0>3d}_score.png'.format(connected_idx))),
+                            score_saving_image)
+                sitk.WriteImage(stacked_image,
+                                os.path.join(patch_visualization_dir,
+                                             filename.replace('.png', '_patch_{:0>3d}.nii'.format(connected_idx))))
 
     return coordinate_list, score_list
 
@@ -425,15 +435,18 @@ def TestMicroCalcificationRadiographLevelDetection(args):
     # remove existing dir which has the same name and create clean dir
     if os.path.exists(args.prediction_saving_dir):
         shutil.rmtree(args.prediction_saving_dir)
-    #
-    visualization_saving_dir = os.path.join(args.prediction_saving_dir, 'qualitative_results')
-    radiograph_level_visualization_saving_dir = os.path.join(visualization_saving_dir, 'radiograph_level')
-    patch_level_visualization_saving_dir = os.path.join(visualization_saving_dir, 'patch_level')
-    #
     os.mkdir(args.prediction_saving_dir)
-    os.mkdir(visualization_saving_dir)
-    os.mkdir(radiograph_level_visualization_saving_dir)
-    os.mkdir(patch_level_visualization_saving_dir)
+
+    # create dir for saving visualization results
+    patch_level_visualization_saving_dir = None
+    if args.save_visualization_results:
+        visualization_saving_dir = os.path.join(args.prediction_saving_dir, 'qualitative_results')
+        radiograph_level_visualization_saving_dir = os.path.join(visualization_saving_dir, 'radiograph_level')
+        patch_level_visualization_saving_dir = os.path.join(visualization_saving_dir, 'patch_level')
+        #
+        os.mkdir(visualization_saving_dir)
+        os.mkdir(radiograph_level_visualization_saving_dir)
+        os.mkdir(patch_level_visualization_saving_dir)
 
     # initialize logger
     logger = Logger(args.prediction_saving_dir, 'quantitative_results.txt')
@@ -541,9 +554,10 @@ def TestMicroCalcificationRadiographLevelDetection(args):
                                                                                            pred_score_list,
                                                                                            label_coord_list)
         # save radiograph-level visualization results
-        save_radiograph_level_results(images_tensor, pixel_level_label_np, raw_residue_radiograph_np,
-                                      processed_residue_radiograph_np, filename,
-                                      radiograph_level_visualization_saving_dir)
+        if args.save_visualization_results:
+            save_radiograph_level_results(images_tensor, pixel_level_label_np, raw_residue_radiograph_np,
+                                          processed_residue_radiograph_np, filename,
+                                          radiograph_level_visualization_saving_dir)
 
         # logging
         # print logging information of this radiograph
