@@ -6,6 +6,7 @@ from net.resnet18 import ResNet18
 kMega = 1e6
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
+
 def ParseArguments():
     parser = argparse.ArgumentParser()
 
@@ -39,8 +40,6 @@ def ParseArguments():
                         default=112,
                         help='the pixels of patch width')
 
-
-
     args = parser.parse_args()
 
     return args
@@ -67,7 +66,7 @@ def TestResnet18(args):
 
 
 if __name__ == '__main__':
-    args=ParseArguments()
+    args = ParseArguments()
 
     for idx in range(args.run_time):
         TestResnet18(args)

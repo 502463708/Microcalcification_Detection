@@ -2,10 +2,10 @@ import argparse
 import os
 import torch
 from net.resnet18_v1 import ResNet18
-from torch.autograd import Variable
 
 kMega = 1e6
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+
 
 def ParseArguments():
     parser = argparse.ArgumentParser()
@@ -32,15 +32,13 @@ def ParseArguments():
 
     parser.add_argument('--dim_x',
                         type=int,
-                        default=112,
+                        default=224,
                         help='the pixels of patch height')
 
     parser.add_argument('--dim_y',
                         type=int,
-                        default=112,
+                        default=224,
                         help='the pixels of patch width')
-
-
 
     args = parser.parse_args()
 
@@ -68,7 +66,7 @@ def TestResnet18(args):
 
 
 if __name__ == '__main__':
-    args=ParseArguments()
+    args = ParseArguments()
 
     for idx in range(args.run_time):
         TestResnet18(args)
