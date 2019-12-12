@@ -173,11 +173,21 @@ class MicroCalcificationDataset(Dataset):
         pixel_level_label_np[pixel_level_label_np == 165] = 0  # other lesion: 165 (.png) -> 0 (tensor)
         pixel_level_label_np[pixel_level_label_np == 85] = 0  # background: 85 (.png) -> 0 (tensor)
 
+        # load uncertainty maps
         uncertainty_map_np = np.zeros_like(image_np)
         if self.load_uncertainty_map:
             uncertainty_map_image = sitk.ReadImage(uncertainty_map_path, sitk.sitkFloat32)
             uncertainty_map_np = sitk.GetArrayFromImage(uncertainty_map_image)
             uncertainty_map_np = uncertainty_map_np.squeeze()
+
+        # resize images, masks and uncertainty maps if the actual size is not consistent with the target size
+        if np.linalg.norm(np.array(self.cropping_size) - image_np.shape) > 1e-3:
+            image_np = cv2.resize(image_np, (self.cropping_size[0], self.cropping_size[1]),
+                                  interpolation=cv2.INTER_AREA)
+            pixel_level_label_np = cv2.resize(pixel_level_label_np, (self.cropping_size[0], self.cropping_size[1]),
+                                              interpolation=cv2.INTER_AREA)
+            uncertainty_map_np = cv2.resize(uncertainty_map_np, (self.cropping_size[0], self.cropping_size[1]),
+                                            interpolation=cv2.INTER_AREA)
 
         # check the consistency of size between image, its pixel-level label and uncertainty-map (fake / authentic)
         assert image_np.shape == pixel_level_label_np.shape == uncertainty_map_np.shape
