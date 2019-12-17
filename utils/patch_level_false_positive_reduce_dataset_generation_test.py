@@ -4,12 +4,11 @@ import cv2
 import numpy as np
 import os
 import shutil
-import SimpleITK as sitk
 import torch
 import torch.backends.cudnn as cudnn
 
 from common.utils import get_ckpt_path
-from config.config_micro_calcification_patch_level_reconstruction import cfg as r_cfg
+from config.config_micro_calcification_patch_level_reconstruction import cfg
 from dataset.dataset_micro_calcification_radiograph_level import MicroCalcificationRadiographLevelDataset
 from logger.logger import Logger
 from net.vnet2d_v2 import VNet2d
@@ -29,7 +28,7 @@ def ParseArguments():
                         help='The source data dir.')
     parser.add_argument('--dst_data_root_dir',
                         type=str,
-                        default='/data/lars/results/20191109_5764-uCs-micro_calcification_radiograph_level_detection_results_rec_dilatted_7_cls_pos_2_neg_0.5_areath_0.2_probth_0.1/',
+                        default='/data/lars/data/Inbreast-microcalcification-false-positive-classification-datasets/dataset_debug',
                         help='The destination data dir.')
     parser.add_argument('--reconstruction_model_saving_dir',
                         type=str,
@@ -39,10 +38,10 @@ def ParseArguments():
                         type=int,
                         default=-1,
                         help='The epoch index of ckpt, set -1 to choose the best ckpt on validation set.')
-    parser.add_argument('--patch_size',
+    parser.add_argument('--reconstruction_patch_size',
                         type=tuple,
                         default=(112, 112),
-                        help='The height and width of patch.')
+                        help='The patch size for reconstruction.')
     parser.add_argument('--patch_stride',
                         type=int,
                         default=56,
@@ -55,11 +54,10 @@ def ParseArguments():
                         type=float,
                         default=3.14 * 7 * 7 * 0.2,
                         help='Connected components whose area < area_threshold will be discarded.')
-    parser.add_argument('--distance_threshold',
-                        type=int,
-                        default=14,
-                        help='Candidates whose distance between calcification < distance_threshold is a recalled one.')
-
+    parser.add_argument('--patch_size',
+                        type=tuple,
+                        default=(56, 56),
+                        help='The patch size for saving.')
     args = parser.parse_args()
 
     return args
@@ -254,42 +252,34 @@ def merge_coord_list(pred_coord_list, label_coord_list):
     return coord_list
 
 
-def save_as(coord_list, images_tensor, pixel_level_label_np, filename, saving_dir, patch_size):
-    if saving_dir is not None:
-        # make the related dirs
-        patch_level_root_saving_dir = os.path.join(saving_dir, filename[:-4])
-        patch_visualization_dir = os.path.join(patch_level_root_saving_dir, mode)
-        if not os.path.exists(patch_level_root_saving_dir):
-            os.mkdir(patch_level_root_saving_dir)
-        os.mkdir(patch_visualization_dir)
+def save_images_and_labels(coord_list, image_np, pixel_level_label_np, filename, positive_dataset_type_dir,
+                           negative_dataset_type_dir, patch_size):
+    height, width = image_np.shape
+    # negative_dataset_type_dir = positive_dataset_type_dir.replace('positive', 'negative')
 
-    _, height, width = images_tensor.shape
+    positive_patch_idx = 0
+    negative_patch_idx = 0
 
     for coord in coord_list:
         # generate legal start and end idx for row and column
         centroid_row_idx = coord[0]
         centroid_column_idx = coord[1]
         #
-        centroid_row_idx = np.clip(
-            centroid_row_idx, patch_size[0] / 2, height - patch_size[0] / 2)
-        centroid_column_idx = np.clip(
-            centroid_column_idx, patch_size[1] / 2, width - patch_size[1] / 2)
+        centroid_row_idx = np.clip(centroid_row_idx, patch_size[0] / 2, height - patch_size[0] / 2)
+        centroid_column_idx = np.clip(centroid_column_idx, patch_size[1] / 2, width - patch_size[1] / 2)
         #
         start_row_idx = int(centroid_row_idx - patch_size[0] / 2)
         end_row_idx = int(centroid_row_idx + patch_size[0] / 2)
         start_column_idx = int(centroid_column_idx - patch_size[1] / 2)
         end_column_idx = int(centroid_column_idx + patch_size[1] / 2)
 
-        # crop this patch for model inference
-        patch_image_tensor = images_tensor[:, :, start_row_idx:end_row_idx, start_column_idx:end_column_idx]
-
-        # process the visualization results
-        image_patch_np = copy.copy(patch_image_tensor.cpu().detach().numpy().squeeze())
-        #
+        # crop this patch from image and label
+        image_patch_np = copy.copy(image_np[start_row_idx:end_row_idx, start_column_idx:end_column_idx])
         pixel_level_label_patch_np = copy.copy(
             pixel_level_label_np[start_row_idx:end_row_idx, start_column_idx:end_column_idx])
+        image_level_label_patch_bool = True if (pixel_level_label_patch_np == 1).sum() > 0 else False
 
-        #
+        # transformed into png format
         image_patch_np *= 255
         #
         pixel_level_label_patch_np[pixel_level_label_patch_np == 1] = 255
@@ -298,23 +288,31 @@ def save_as(coord_list, images_tensor, pixel_level_label_np, filename, saving_di
         #
         image_patch_np = image_patch_np.astype(np.uint8)
         pixel_level_label_patch_np = pixel_level_label_patch_np.astype(np.uint8)
+        if image_level_label_patch_bool == False:
+            negative_patch_idx += 1
+            absolute_image_saving_path = os.path.join(negative_dataset_type_dir,
+                                                      'negative_' + filename.split('.')[0] + '_{}.png'.format(
+                                                          negative_patch_idx))
+            absolute_label_saving_path = absolute_image_saving_path.replace('images', 'labels')
+            cv2.imwrite(absolute_image_saving_path, image_patch_np)
+            cv2.imwrite(absolute_label_saving_path, pixel_level_label_patch_np)
 
+        elif image_level_label_patch_bool == True:
+            positive_patch_idx += 1
+            absolute_image_saving_path = os.path.join(positive_dataset_type_dir,
+                                                      'positive_' + filename.split('.')[0] + '_{}.png'.format(
+                                                          positive_patch_idx))
+            absolute_label_saving_path = absolute_image_saving_path.replace('images', 'labels')
+            cv2.imwrite(absolute_image_saving_path, image_patch_np)
+            cv2.imwrite(absolute_label_saving_path, pixel_level_label_patch_np)
+
+        # print(absolute_label_saving_path)
+
+        # print('negative idx {} '.format(negative_patch_idx))
+        # print('positive idx {}'.format(positive_patch_idx))
         # saving
-        cv2.imwrite(os.path.join(patch_visualization_dir,
-                                 filename.replace('.png', '_patch_{:0>3d}_image.png'.format(connected_idx))),
-                    image_patch_np)
-        cv2.imwrite(os.path.join(patch_visualization_dir,
-                                 filename.replace('.png', '_patch_{:0>3d}_mask.png'.format(connected_idx))),
-                    pixel_level_label_patch_np)
-        cv2.imwrite(os.path.join(patch_visualization_dir,
-                                 filename.replace('.png',
-                                                  '_patch_{:0>3d}_raw_residue.png'.format(connected_idx))),
-                    raw_residue_patch_np)
-        cv2.imwrite(os.path.join(patch_visualization_dir,
-                                 filename.replace('.png',
-                                                  '_patch_{:0>3d}_processed_residue.png'.format(
-                                                      connected_idx))),
-                    processed_residue_patch_np)
+        # cv2.imwrite(absolute_image_saving_path, image_patch_np)
+        # cv2.imwrite(absolute_label_saving_path, pixel_level_label_patch_np)
 
     return
 
@@ -324,32 +322,25 @@ def TestMicroCalcificationRadiographLevelDetection(args):
     start_time_for_dataset = time()
 
     # remove existing dir which has the same name and create clean dir
-    if os.path.exists(args.prediction_saving_dir):
-        shutil.rmtree(args.prediction_saving_dir)
-    os.mkdir(args.prediction_saving_dir)
+    if os.path.exists(args.dst_data_root_dir):
+        shutil.rmtree(args.dst_data_root_dir)
+    os.mkdir(args.dst_data_root_dir)
 
-    # create dir for saving visualization results
-    patch_level_visualization_saving_dir = None
-    if args.save_visualization_results:
-        visualization_saving_dir = os.path.join(args.prediction_saving_dir, 'qualitative_results')
-        radiograph_level_visualization_saving_dir = os.path.join(visualization_saving_dir, 'radiograph_level')
-        patch_level_visualization_saving_dir = os.path.join(visualization_saving_dir, 'patch_level')
-        #
-        os.mkdir(visualization_saving_dir)
-        os.mkdir(radiograph_level_visualization_saving_dir)
-        os.mkdir(patch_level_visualization_saving_dir)
+    for patch_type in ['positive_patches', 'negative_patches']:
+        os.mkdir(os.path.join(args.dst_data_root_dir, patch_type))
+        for dataset_type in ['training', 'validation', 'test']:
+            os.mkdir(os.path.join(args.dst_data_root_dir, patch_type, dataset_type))
+            for image_type in ['images', 'labels']:
+                os.mkdir(os.path.join(args.dst_data_root_dir, patch_type, dataset_type, image_type))
 
     # initialize logger
-    logger = Logger(args.prediction_saving_dir, 'quantitative_results.txt')
-    logger.write_and_print('Dataset: {}'.format(args.data_root_dir))
-    logger.write_and_print('Dataset type: {}'.format(args.dataset_type))
+    logger = Logger(args.dst_data_root_dir)
+    logger.write_and_print('Dataset: {}'.format(args.src_data_root_dir))
     logger.write_and_print('Reconstruction model saving dir: {}'.format(args.reconstruction_model_saving_dir))
     logger.write_and_print('Reconstruction ckpt index: {}'.format(args.reconstruction_epoch_idx))
-    logger.write_and_print('Classification model saving dir: {}'.format(args.classification_model_saving_dir))
-    logger.write_and_print('Classification ckpt index: {}'.format(args.classification_epoch_idx))
 
     # define the reconstruction network
-    reconstruction_net = VNet2d(num_in_channels=r_cfg.net.in_channels, num_out_channels=r_cfg.net.out_channels)
+    reconstruction_net = VNet2d(num_in_channels=cfg.net.in_channels, num_out_channels=cfg.net.out_channels)
     #
     # get the reconstruction absolute ckpt path
     reconstruction_ckpt_path = get_ckpt_path(args.reconstruction_model_saving_dir, args.reconstruction_epoch_idx)
@@ -361,63 +352,82 @@ def TestMicroCalcificationRadiographLevelDetection(args):
     #
     logger.write_and_print('Load ckpt: {0}...'.format(reconstruction_ckpt_path))
 
-    # create dataset
-    dataset = MicroCalcificationRadiographLevelDataset(data_root_dir=args.data_root_dir, mode=args.dataset_type)
+    for dataset_type in ['training', 'validation', 'test']:
+        positive_dataset_type_dir = os.path.join(args.dst_data_root_dir, 'positive_patches', dataset_type, 'images')
+        negative_dataset_type_dir = os.path.join(args.dst_data_root_dir, 'negative_patches', dataset_type, 'images')
 
-    # create data loader
-    data_loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=r_cfg.train.num_threads)
+        # create dataset
+        dataset = MicroCalcificationRadiographLevelDataset(data_root_dir=args.src_data_root_dir, mode=dataset_type)
 
-    for radiograph_idx, (images_tensor, pixel_level_labels_tensor, _, filenames) in enumerate(data_loader):
-        filename = filenames[0]
+        # create data loader
+        data_loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=cfg.train.num_threads)
 
-        # logging
-        logger.write_and_print('--------------------------------------------------------------------------------------')
+        for radiograph_idx, (images_tensor, pixel_level_labels_tensor, _, filenames) in enumerate(data_loader):
+            filename = filenames[0]
+
+            # logging
+            logger.write_and_print('----------------------------------------------------------------------------------')
+            logger.write_and_print('Start evaluating {} set radiograph {} out of {}: {}...'.format(dataset_type,
+                                                                                                   radiograph_idx + 1,
+                                                                                                   dataset.__len__(),
+                                                                                                   filename))
+
+            # start time of this radiograph
+            start_time_for_radiograph = time()
+
+            # transfer the tensor into gpu device
+            images_tensor = images_tensor.cuda()
+
+            # transfer the tensor into ndarray format
+            image_np = images_tensor.cpu().numpy().squeeze()
+            pixel_level_label_np = pixel_level_labels_tensor.cpu().numpy().squeeze()
+
+            # generated raw radiograph-level residue
+            _, raw_residue_radiograph_np = generate_radiograph_level_reconstructed_and_residue_result(images_tensor,
+                                                                                                      reconstruction_net,
+                                                                                                      pixel_level_label_np,
+                                                                                                      args.reconstruction_patch_size,
+                                                                                                      args.patch_stride)
+
+            # post-process the raw radiograph-level residue
+            processed_residue_radiograph_np = post_process_residue_radiograph(raw_residue_radiograph_np,
+                                                                              pixel_level_label_np,
+                                                                              args.prob_threshold,
+                                                                              args.area_threshold)
+
+            # generate coordinates list for the post-processed radiograph-level residue
+            pred_coord_list = generate_coordinate_list(processed_residue_radiograph_np)
+
+            # generate coordinates list for the mask
+            label_coord_list = generate_coordinate_list(pixel_level_label_np, mode='annotated')
+
+            # debug only
+            logger.write_and_print('pred {}'.format(len(pred_coord_list)))
+            logger.write_and_print('label {}'.format(len(label_coord_list)))
+
+            # merge pred_coord_list and label_coord_list
+            coord_list = merge_coord_list(pred_coord_list, label_coord_list)
+
+            save_images_and_labels(coord_list, image_np, pixel_level_label_np, filename, positive_dataset_type_dir,
+                                   negative_dataset_type_dir,
+                                   args.patch_size)
+
+            # logging
+            # print logging information of this radiograph
+            logger.write_and_print(
+                'Finish evaluating radiograph: {}, consuming time: {:.4f}s'.format(radiograph_idx + 1,
+                                                                                   time() - start_time_for_radiograph))
+            logger.write_and_print(
+                '--------------------------------------------------------------------------------------')
+            logger.flush()
+
+        # print logging information of this dataset
         logger.write_and_print(
-            'Start evaluating radiograph {} out of {}: {}...'.format(radiograph_idx + 1, dataset.__len__(), filename))
-
-        # start time of this radiograph
-        start_time_for_radiograph = time()
-
-        # transfer the tensor into gpu device
-        images_tensor = images_tensor.cuda()
-
-        # transfer the tensor into ndarray format
-        pixel_level_label_np = pixel_level_labels_tensor.cpu().numpy().squeeze()
-
-        # generated raw radiograph-level residue
-        _, raw_residue_radiograph_np = generate_radiograph_level_reconstructed_and_residue_result(images_tensor,
-                                                                                                  reconstruction_net,
-                                                                                                  pixel_level_label_np,
-                                                                                                  args.patch_size,
-                                                                                                  args.patch_stride)
-
-        # post-process the raw radiograph-level residue
-        processed_residue_radiograph_np = post_process_residue_radiograph(raw_residue_radiograph_np,
-                                                                          pixel_level_label_np,
-                                                                          args.prob_threshold,
-                                                                          args.area_threshold)
-
-        # generate coordinates and score list for the post-processed radiograph-level residue
-        pred_coord_list = generate_coordinate_list(processed_residue_radiograph_np)
-
-        # generate coordinates list for the mask
-        label_coord_list = generate_coordinate_list(pixel_level_label_np, mode='annotated')
-
-        # logging
-        # print logging information of this radiograph
+            '&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
         logger.write_and_print(
-            'Finish evaluating radiograph: {}, consuming time: {:.4f}s'.format(radiograph_idx + 1,
-                                                                               time() - start_time_for_radiograph))
-        logger.write_and_print('--------------------------------------------------------------------------------------')
-        logger.flush()
-
-    # print logging information of this dataset
-    logger.write_and_print(
-        '&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
-    logger.write_and_print(
-        'Finished evaluating this dataset, consuming time: {:.4f}s'.format(time() - start_time_for_dataset))
-    logger.write_and_print(
-        '&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
+            'Finished evaluating this dataset, consuming time: {:.4f}s'.format(time() - start_time_for_dataset))
+        logger.write_and_print(
+            '&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
 
     return
 
