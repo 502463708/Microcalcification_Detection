@@ -4,8 +4,11 @@ import cv2
 import numpy as np
 import os
 import shutil
+import sys
 import torch
 import torch.backends.cudnn as cudnn
+
+sys.path.append(os.path.dirname(os.getcwd()))
 
 from common.utils import get_ckpt_path
 from config.config_micro_calcification_patch_level_reconstruction import cfg
