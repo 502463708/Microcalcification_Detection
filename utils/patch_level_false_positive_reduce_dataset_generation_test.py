@@ -1,6 +1,5 @@
 import argparse
 import os
-import shutil
 import sys
 import torch
 import torch.backends.cudnn as cudnn
