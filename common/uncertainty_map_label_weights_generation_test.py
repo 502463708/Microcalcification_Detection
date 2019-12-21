@@ -1,11 +1,11 @@
 import argparse
 import os
-import SimpleITK as sitk
 import sys
 import torch.backends.cudnn as cudnn
 
 sys.path.append(os.path.dirname(os.getcwd()))
 
+from common.uncertainty_map_label_weights_generation import save_uncertainty_maps
 from common.utils import get_net_list, generate_uncertainty_maps
 from config.config_micro_calcification_patch_level_reconstruction import cfg
 from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
@@ -35,8 +35,7 @@ def ParseArguments():
     parser.add_argument('--mc_epoch_indexes',
                         type=int,
                         default=[410, 420, 430, 440, 450, 460, 470, 480, 490, 500],
-                        help='The epoch ckpt index list for generating uncertainty maps'
-                             'set null list [] to switch off.')
+                        help='The epoch ckpt indexes for generating uncertainty maps set null list [] to switch off.')
     parser.add_argument('--dataset_type',
                         type=str,
                         default='training',
@@ -51,31 +50,7 @@ def ParseArguments():
     return args
 
 
-def save_uncertainty_maps(uncertainty_maps_np, filenames, positive_patch_results_saving_dir,
-                          negative_patch_results_saving_dir, logger):
-    batch_size = uncertainty_maps_np.shape[0]
 
-    # iterating each image of this batch
-    for idx in range(batch_size):
-        uncertainty_map_np = uncertainty_maps_np[idx, :, :]
-        filename = filenames[idx]
-        is_positive_patch = True if 'positive' in filename else False
-
-        logger.write_and_print(
-            'Info for the uncertainty map of image {}: max = {:.4f}, min = {:.4f}'.format(filename,
-                                                                                          uncertainty_map_np.max(),
-                                                                                          uncertainty_map_np.min()))
-
-        uncertainty_map_image = sitk.GetImageFromArray(uncertainty_map_np)
-
-        if is_positive_patch:
-            sitk.WriteImage(uncertainty_map_image,
-                            os.path.join(positive_patch_results_saving_dir, filename.replace('png', 'nii')))
-        else:
-            sitk.WriteImage(uncertainty_map_image,
-                            os.path.join(negative_patch_results_saving_dir, filename.replace('png', 'nii')))
-
-    return
 
 
 def TestUncertaintyMapLabelWeightsGeneration(args):

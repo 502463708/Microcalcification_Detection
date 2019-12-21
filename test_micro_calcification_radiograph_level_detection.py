@@ -8,7 +8,8 @@ import SimpleITK as sitk
 import torch
 import torch.backends.cudnn as cudnn
 
-from common.utils import get_ckpt_path
+from common.utils import get_ckpt_path, generate_radiograph_level_reconstructed_and_residue_result, \
+    post_process_residue_radiograph
 from config.config_micro_calcification_patch_level_classification import cfg as c_cfg
 from config.config_micro_calcification_patch_level_reconstruction import cfg as r_cfg
 from dataset.dataset_micro_calcification_radiograph_level import MicroCalcificationRadiographLevelDataset
@@ -90,144 +91,6 @@ def ParseArguments():
     args = parser.parse_args()
 
     return args
-
-
-def generate_radiograph_level_reconstructed_and_residue_result(images_tensor, reconstruction_net, pixel_level_label_np,
-                                                               patch_size, stride):
-    if images_tensor.device.type == 'cpu':
-        images_tensor = images_tensor.cuda()
-
-    assert stride > 0, 'The variable stride must be a positive integer.'
-
-    height = images_tensor.shape[2]
-    width = images_tensor.shape[3]
-
-    reconstructed_radiograph = np.zeros((height, width))
-    residue_radiograph = np.zeros((height, width))
-    counting_mask = np.zeros((height, width))
-
-    start_row_idx = -1
-    end_row_idx = -1
-    while end_row_idx < height:
-        if start_row_idx == -1:
-            start_row_idx = 0
-            end_row_idx = start_row_idx + patch_size[0]
-        else:
-            start_row_idx += stride
-            end_row_idx += stride
-        if end_row_idx > height:
-            gap_row = end_row_idx - height
-            end_row_idx -= gap_row
-            start_row_idx -= gap_row
-
-        start_column_idx = -1
-        end_column_idx = -1
-        while end_column_idx < width:
-            if start_column_idx == -1:
-                start_column_idx = 0
-                end_column_idx = start_column_idx + patch_size[1]
-            else:
-                start_column_idx += stride
-                end_column_idx += stride
-            if end_column_idx > width:
-                gap_column = end_column_idx - width
-                end_column_idx -= gap_column
-                start_column_idx -= gap_column
-
-            # debug only
-            # print(
-            #     'row idx range: {} - {} (height = {}), column idx range: {} - {} (width = {})'.format(start_row_idx,
-            #                                                                                           end_row_idx,
-            #                                                                                           height,
-            #                                                                                           start_column_idx,
-            #                                                                                           end_column_idx,
-            #                                                                                           width))
-
-            # generate the current patch label
-            patch_label_np = pixel_level_label_np[start_row_idx:end_row_idx, start_column_idx:end_column_idx]
-
-            # this patch is totally occupied with outlier calcification -> skip
-            if np.where(patch_label_np == 2)[0].shape[0] == patch_label_np.size:
-                continue
-            # this patch is totally occupied with background -> skip
-            if np.where(patch_label_np == 3)[0].shape[0] == patch_label_np.size:
-                continue
-            # this patch is totally occupied with outlier calcification and background -> skip
-            if np.where(patch_label_np == 2)[0].shape[0] + np.where(patch_label_np == 3)[0].shape[0] \
-                    == patch_label_np.size:
-                continue
-
-            # crop this patch for model inference
-            patch_image_tensor = images_tensor[:, :, start_row_idx:end_row_idx, start_column_idx:end_column_idx]
-
-            # generate the current reconstructed patch and residue patch
-            reconstructed_patch_tensor, residue_patch_tensor = reconstruction_net(patch_image_tensor)
-            reconstructed_current_patch = reconstructed_patch_tensor.cpu().detach().numpy().squeeze()
-            residue_current_patch = residue_patch_tensor.cpu().detach().numpy().squeeze()
-
-            # get the existing reconstructed patch and residue patch
-            reconstructed_existing_patch = reconstructed_radiograph[start_row_idx:end_row_idx,
-                                           start_column_idx:end_column_idx]
-            residue_existing_patch = residue_radiograph[start_row_idx:end_row_idx,
-                                     start_column_idx:end_column_idx]
-
-            # get the counting patch and weight matrix
-            counting_mask_patch = counting_mask[start_row_idx:end_row_idx, start_column_idx:end_column_idx]
-            current_weight_matrix = 1 / (counting_mask_patch + 1)
-            existing_weight_matrix = 1 - current_weight_matrix
-
-            # update the existing reconstructed radiopgraph and residue radiopgraph
-            reconstructed_radiograph[start_row_idx:end_row_idx, start_column_idx:end_column_idx] = \
-                reconstructed_existing_patch * existing_weight_matrix + \
-                reconstructed_current_patch * current_weight_matrix
-            residue_radiograph[start_row_idx:end_row_idx, start_column_idx:end_column_idx] = \
-                residue_existing_patch * existing_weight_matrix + \
-                residue_current_patch * current_weight_matrix
-
-            # update the counting mask
-            counting_mask_patch += 1
-            counting_mask[start_row_idx:end_row_idx, start_column_idx:end_column_idx] = counting_mask_patch
-
-    assert reconstructed_radiograph.shape == residue_radiograph.shape
-
-    return reconstructed_radiograph, residue_radiograph
-
-
-def post_process_residue_radiograph(raw_residue_radiograph_np, pixel_level_label_np, prob_threshold, area_threshold,
-                                    remove_overlapped_connected_component=True):
-    assert raw_residue_radiograph_np.shape == pixel_level_label_np.shape
-
-    # created for labelling connected components
-    residue_mask_radiograph_np = np.zeros_like(raw_residue_radiograph_np)
-
-    # created for saving the post processed residue
-    processed_residue_radiograph_np = copy.copy(raw_residue_radiograph_np)
-
-    # only pixels with residue value >= prob_threshold can be remained
-    processed_residue_radiograph_np[processed_residue_radiograph_np < prob_threshold] = 0
-
-    # generate information for each connected component on processed_residue_radiograph_np
-    residue_mask_radiograph_np[processed_residue_radiograph_np > 0] = 1
-    connected_components = measure.label(residue_mask_radiograph_np)
-    props = measure.regionprops(connected_components)
-
-    # iterate each connected component
-    connected_idx = 0
-    for prop in props:
-        connected_idx += 1
-        indexes = connected_components == connected_idx
-        # remove the detected results with area smaller than area_threshold
-        if prop.area < area_threshold:
-            processed_residue_radiograph_np[indexes] = 0
-        if remove_overlapped_connected_component:
-            # remove the detected results overlapped with background or other lesion
-            if pixel_level_label_np[indexes].max() > 1:
-                processed_residue_radiograph_np[indexes] = 0
-
-    processed_residue_radiograph_np[pixel_level_label_np == 2] = 0
-    processed_residue_radiograph_np[pixel_level_label_np == 3] = 0
-
-    return processed_residue_radiograph_np
 
 
 def generate_coordinate_and_score_list(images_tensor, classification_net, pixel_level_label_np,
