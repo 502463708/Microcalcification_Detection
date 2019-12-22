@@ -1,6 +1,7 @@
 import argparse
 import copy
 import cv2
+import importlib
 import numpy as np
 import os
 import shutil
@@ -15,7 +16,6 @@ from config.config_micro_calcification_patch_level_reconstruction import cfg as 
 from dataset.dataset_micro_calcification_radiograph_level import MicroCalcificationRadiographLevelDataset
 from logger.logger import Logger
 from metrics.metrics_radiograph_level_detection import MetricsRadiographLevelDetection
-from net.resnet18 import ResNet18
 from net.vnet2d_v2 import VNet2d
 from skimage import measure
 from torch.utils.data import DataLoader
@@ -51,11 +51,15 @@ def ParseArguments():
                         type=str,
                         default='/data/lars/models/20191108_5764_uCs_patch_level_pos2neg_0.5_classification_CE_default/',
                         help='The classification model saved dir.')
+    parser.add_argument('--classification_net_name',
+                        type=str,
+                        default='resnet18_v1',
+                        help='The file name implementing classification network architecture.')
     parser.add_argument('--classification_epoch_idx',
                         type=int,
                         default=-1,
                         help='The epoch index of ckpt, set -1 to choose the best ckpt on validation set.')
-    parser.add_argument('--patch_size',
+    parser.add_argument('--reconstruction_patch_size',
                         type=tuple,
                         default=(112, 112),
                         help='The height and width of patch.')
@@ -71,6 +75,14 @@ def ParseArguments():
                         type=float,
                         default=3.14 * 7 * 7 * 0.2,
                         help='Connected components whose area < area_threshold will be discarded.')
+    parser.add_argument('--crop_patch_size',
+                        type=tuple,
+                        default=(56, 56),
+                        help='The height and width of patch.')
+    parser.add_argument('--resampled_patch_size',
+                        type=tuple,
+                        default=(224, 224),
+                        help='The height and width of patch.')
     parser.add_argument('--score_threshold_stride',
                         type=float,
                         default=0.05,
@@ -95,7 +107,7 @@ def ParseArguments():
 
 def generate_coordinate_and_score_list(images_tensor, classification_net, pixel_level_label_np,
                                        raw_residue_radiograph_np, processed_residue_radiograph_np, filename, saving_dir,
-                                       patch_size, mode='detected'):
+                                       crop_patch_size, upsampled_patch_size, mode='detected'):
     # mode must be either 'detected' or 'annotated'
     assert mode in ['detected', 'annotated']
 
@@ -143,20 +155,24 @@ def generate_coordinate_and_score_list(images_tensor, classification_net, pixel_
             centroid_column_idx = prop.centroid[1]
             #
             centroid_row_idx = np.clip(
-                centroid_row_idx, patch_size[0] / 2, height - patch_size[0] / 2)
+                centroid_row_idx, crop_patch_size[0] / 2, height - crop_patch_size[0] / 2)
             centroid_column_idx = np.clip(
-                centroid_column_idx, patch_size[1] / 2, width - patch_size[1] / 2)
+                centroid_column_idx, crop_patch_size[1] / 2, width - crop_patch_size[1] / 2)
             #
-            start_row_idx = int(centroid_row_idx - patch_size[0] / 2)
-            end_row_idx = int(centroid_row_idx + patch_size[0] / 2)
-            start_column_idx = int(centroid_column_idx - patch_size[1] / 2)
-            end_column_idx = int(centroid_column_idx + patch_size[1] / 2)
+            start_row_idx = int(centroid_row_idx - crop_patch_size[0] / 2)
+            end_row_idx = int(centroid_row_idx + crop_patch_size[0] / 2)
+            start_column_idx = int(centroid_column_idx - crop_patch_size[1] / 2)
+            end_column_idx = int(centroid_column_idx + crop_patch_size[1] / 2)
 
             # crop this patch for model inference
             patch_image_tensor = images_tensor[:, :, start_row_idx:end_row_idx, start_column_idx:end_column_idx]
+            upsampled_patch_image_tensor = \
+                torch.nn.functional.interpolate(patch_image_tensor, size=(upsampled_patch_size[0],
+                                                                          upsampled_patch_size[1]),
+                                                scale_factor=None, mode='nearest', align_corners=None)
 
             # generate the positive class prediction probability
-            classification_preds_tensor = classification_net(patch_image_tensor)
+            classification_preds_tensor = classification_net(upsampled_patch_image_tensor)
             classification_preds_tensor = torch.softmax(classification_preds_tensor, dim=1)
             positive_prob = classification_preds_tensor.cpu().detach().numpy().squeeze()[1]
 
@@ -202,9 +218,9 @@ def generate_coordinate_and_score_list(images_tensor, classification_net, pixel_
                 processed_residue_patch_np = processed_residue_patch_np.astype(np.uint8)
                 pixel_level_label_patch_np = pixel_level_label_patch_np.astype(np.uint8)
                 #
-                prob_saving_image = np.zeros((patch_size[0], patch_size[1], 3), np.uint8)
-                mean_residue_saving_image = np.zeros((patch_size[0], patch_size[1], 3), np.uint8)
-                score_saving_image = np.zeros((patch_size[0], patch_size[1], 3), np.uint8)
+                prob_saving_image = np.zeros((crop_patch_size[0], crop_patch_size[1], 3), np.uint8)
+                mean_residue_saving_image = np.zeros((crop_patch_size[0], crop_patch_size[1], 3), np.uint8)
+                score_saving_image = np.zeros((crop_patch_size[0], crop_patch_size[1], 3), np.uint8)
                 font = cv2.FONT_HERSHEY_SIMPLEX
                 cv2.putText(prob_saving_image, '{:.4f}'.format(positive_prob), (0, 64), font, 1, (0, 255, 255), 2)
                 cv2.putText(mean_residue_saving_image, '{:.4f}'.format(residue_mean), (0, 64), font, 1, (255, 0, 255),
@@ -333,8 +349,14 @@ def TestMicroCalcificationRadiographLevelDetection(args):
     #
     logger.write_and_print('Load ckpt: {0}...'.format(reconstruction_ckpt_path))
 
+    # import the network package
+    try:
+        net_package = importlib.import_module('net.{}'.format(args.classification_net_name))
+    except BaseException:
+        print('failed to import package: {}'.format('net.' + args.classification_net_name))
+    #
     # define the classification network
-    classification_net = ResNet18(in_channels=c_cfg.net.in_channels, num_classes=c_cfg.net.num_classes)
+    classification_net = net_package.ResNet18(in_channels=c_cfg.net.in_channels, num_classes=c_cfg.net.num_classes)
     #
     # get the classification absolute ckpt path
     classification_ckpt_path = get_ckpt_path(args.classification_model_saving_dir, args.classification_epoch_idx)
@@ -376,7 +398,7 @@ def TestMicroCalcificationRadiographLevelDetection(args):
         _, raw_residue_radiograph_np = generate_radiograph_level_reconstructed_and_residue_result(images_tensor,
                                                                                                   reconstruction_net,
                                                                                                   pixel_level_label_np,
-                                                                                                  args.patch_size,
+                                                                                                  args.reconstruction_patch_size,
                                                                                                   args.patch_stride)
 
         # post-process the raw radiograph-level residue
@@ -393,7 +415,8 @@ def TestMicroCalcificationRadiographLevelDetection(args):
                                                                               processed_residue_radiograph_np,
                                                                               filename,
                                                                               patch_level_visualization_saving_dir,
-                                                                              args.patch_size)
+                                                                              args.crop_patch_size,
+                                                                              args.resampled_patch_size)
 
         # generate coordinates list for the mask
         label_coord_list, _ = generate_coordinate_and_score_list(images_tensor,
@@ -403,7 +426,8 @@ def TestMicroCalcificationRadiographLevelDetection(args):
                                                                  processed_residue_radiograph_np,
                                                                  filename,
                                                                  patch_level_visualization_saving_dir,
-                                                                 args.patch_size,
+                                                                 args.crop_patch_size,
+                                                                 args.resampled_patch_size,
                                                                  mode='annotated')
 
         # evaluate based on the above three lists
