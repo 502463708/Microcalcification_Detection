@@ -39,10 +39,14 @@ def ParseArguments():
                         type=int,
                         default=-1,
                         help='The epoch index of ckpt, set -1 to choose the best ckpt on validation set.')
+    parser.add_argument('--uncertainty_model_saving_dir',
+                        type=str,
+                        default='/data/lars/models/20191108_5764_uCs_patch_level_reconstruction_ttestlossv3_default_dilation_radius_7/',
+                        help='The reconstruction model for uncertainty saved dir.')
     parser.add_argument('--mc_epoch_indexes',
                         type=int,
                         default=[410, 420, 430, 440, 450, 460, 470, 480, 490, 500],
-                        help='The epoch ckpt indexes for generating uncertainty maps set null list [] to switch off.')
+                        help='The epoch ckpt indexes for generating uncertainty maps.')
     parser.add_argument('--reconstruction_patch_size',
                         type=tuple,
                         default=(112, 112),
@@ -90,8 +94,8 @@ def TestMicroCalcificationRadiographLevelDetection(args):
 
     # get net list for imitating MC dropout process
     net_for_mc = VNet2d(num_in_channels=cfg.net.in_channels, num_out_channels=cfg.net.out_channels)
-    ckpt_dir = os.path.join(args.reconstruction_model_saving_dir, 'ckpt')
-    net_list = get_net_list(net_for_mc, ckpt_dir, args.mc_epoch_indexes, logger)
+    uncertainty_model_ckpt_dir = os.path.join(args.uncertainty_model_saving_dir, 'ckpt')
+    net_list = get_net_list(net_for_mc, uncertainty_model_ckpt_dir, args.mc_epoch_indexes, logger)
 
     # define the reconstruction network
     reconstruction_net = VNet2d(num_in_channels=cfg.net.in_channels, num_out_channels=cfg.net.out_channels)
