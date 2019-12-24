@@ -240,7 +240,7 @@ if __name__ == '__main__':
     # create dataset and data loader for training
     training_dataset = MicroCalcificationDataset(data_root_dir=cfg.general.data_root_dir,
                                                  mode='training',
-                                                 enable_random_sampling=True,
+                                                 enable_random_sampling=cfg.dataset.enable_random_sampling,
                                                  pos_to_neg_ratio=cfg.dataset.pos_to_neg_ratio,
                                                  image_channels=cfg.dataset.image_channels,
                                                  cropping_size=cfg.dataset.cropping_size,
