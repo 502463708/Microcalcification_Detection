@@ -161,6 +161,8 @@ class MicroCalcificationDataset(Dataset):
         image_np = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         image_np = image_np.astype(np.float)
         #
+        original_shape = image_np.shape
+        #
         # normalize the intensity range of image: [0, 255] -> [0, 1]
         image_np /= 255.0
 
@@ -179,15 +181,6 @@ class MicroCalcificationDataset(Dataset):
             uncertainty_map_image = sitk.ReadImage(uncertainty_map_path, sitk.sitkFloat32)
             uncertainty_map_np = sitk.GetArrayFromImage(uncertainty_map_image)
             uncertainty_map_np = uncertainty_map_np.squeeze()
-
-        # resize images, masks and uncertainty maps if the actual size is not consistent with the target size
-        if np.linalg.norm(np.array(self.cropping_size) - image_np.shape) > 1e-3:
-            image_np = cv2.resize(image_np, (self.cropping_size[0], self.cropping_size[1]),
-                                  interpolation=cv2.INTER_AREA)
-            pixel_level_label_np = cv2.resize(pixel_level_label_np, (self.cropping_size[0], self.cropping_size[1]),
-                                              interpolation=cv2.INTER_AREA)
-            uncertainty_map_np = cv2.resize(uncertainty_map_np, (self.cropping_size[0], self.cropping_size[1]),
-                                            interpolation=cv2.INTER_AREA)
 
         # check the consistency of size between image, its pixel-level label and uncertainty-map (fake / authentic)
         assert image_np.shape == pixel_level_label_np.shape == uncertainty_map_np.shape
@@ -246,6 +239,30 @@ class MicroCalcificationDataset(Dataset):
         #
         # micro calcification number label tensor
         micro_calcification_number_label_tensor = torch.LongTensor(micro_calcification_number)  # shape: [1]
+
+        # resize images, masks and uncertainty maps if the actual size is not consistent with the target size
+        if np.linalg.norm(np.array(self.cropping_size) - original_shape) > 1e-3:
+            image_tensor = torch.nn.functional.interpolate(image_tensor.unsqueeze(dim=0),
+                                                           size=(self.cropping_size[0], self.cropping_size[1]),
+                                                           scale_factor=None, mode='bilinear',
+                                                           align_corners=False).squeeze(dim=0)
+
+            pixel_level_label_tensor = pixel_level_label_tensor.float()
+            pixel_level_label_tensor = torch.nn.functional.interpolate(
+                pixel_level_label_tensor.unsqueeze(dim=0).unsqueeze(dim=0),
+                size=(self.cropping_size[0], self.cropping_size[1]),
+                scale_factor=None, mode='nearest').squeeze().long()
+
+            pixel_level_label_dilated_tensor = pixel_level_label_dilated_tensor.float()
+            pixel_level_label_dilated_tensor = torch.nn.functional.interpolate(
+                pixel_level_label_dilated_tensor.unsqueeze(dim=0).unsqueeze(dim=0),
+                size=(self.cropping_size[0], self.cropping_size[1]),
+                scale_factor=None, mode='nearest').squeeze().long()
+
+            uncertainty_map_tensor = torch.nn.functional.interpolate(
+                uncertainty_map_tensor.unsqueeze(dim=0).unsqueeze(dim=0),
+                size=(self.cropping_size[0], self.cropping_size[1]),
+                scale_factor=None, mode='bilinear', align_corners=False).squeeze()
 
         assert len(image_tensor.shape) == 3
         assert len(pixel_level_label_tensor.shape) == 2

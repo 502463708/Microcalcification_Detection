@@ -169,7 +169,7 @@ def generate_coordinate_and_score_list(images_tensor, classification_net, pixel_
             upsampled_patch_image_tensor = \
                 torch.nn.functional.interpolate(patch_image_tensor, size=(upsampled_patch_size[0],
                                                                           upsampled_patch_size[1]),
-                                                scale_factor=None, mode='nearest', align_corners=None)
+                                                scale_factor=None, mode='bilinear', align_corners=False)
 
             # generate the positive class prediction probability
             classification_preds_tensor = classification_net(upsampled_patch_image_tensor)
