@@ -7,6 +7,7 @@ import sys
 import torch
 import torch.backends.cudnn as cudnn
 import matplotlib.pyplot as plt
+from scipy.ndimage import gaussian_filter1d
 
 sys.path.append(os.path.dirname(os.getcwd()))
 
@@ -26,7 +27,7 @@ def ParseArguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_root_dir',
                         type=str,
-                        default='/data/lars/data/Inbreast-microcalcification-datasets-5764-uCs-20191128/Inbreast-patch-level-split-pos2neg-ratio-1-dataset/',
+                        default='/data/lars/data/Inbreast-microcalcification-datasets-5764-uCs-20191107/Inbreast-patch-level-split-pos2neg-ratio-1-dataset/',
                         help='Source data dir.')
     parser.add_argument('--sta_save_dir',
                         type=str,
@@ -34,11 +35,11 @@ def ParseArguments():
                         help='statistics save dir')
     parser.add_argument('--bins',
                         type=int,
-                        default=1000,
+                        default=500,
                         help='the number of intervals to divide uncertainty value')
     parser.add_argument('--model_saving_dir',
                         type=str,
-                        default='/data/lars/models/models/20191129_5764_uCs_patch_level_reconstruction_ttestlossv3_default_dilation_radius_7/',
+                        default='/data/lars/models/models_copied_from_10.26.2.22/20191129_5764_uCs_patch_level_reconstruction_ttestlossv3_default_dilation_radius_7/',
                         help='Model saved dir.')
     parser.add_argument('--epoch_idx',
                         type=int,
@@ -77,6 +78,10 @@ def ParseArguments():
                         type=int,
                         default=30,
                         help='Batch size for evaluation.')
+    parser.add_argument('--bin_range',
+                        type=int,
+                        default=0.15,
+                        help='Batch size for evaluation.')
     parser.add_argument('--save_nii',
                         type=bool,
                         default=False,
@@ -91,11 +96,30 @@ def pltsave(hist, dir, name):
     objects = np.linspace(0, 1, len(hist))
     y_pos = np.arange(len(objects))
     plt.bar(y_pos, hist)
-    plt.xticks(np.array([0, 200, 400, 600, 800, 1000]), np.array([0, 0.04, 0.08, 0.12, 0.16, 0.2]))
+    plt.xticks(np.linspace(0, args.bins, num=6), np.linspace(0, args.bin_range, num=6))
     plt.ylabel('uncertainty value')
     plt.title("{} distribution".format(name))
     plt.savefig(os.path.join(dir, '{}.png'.format(name)))
     plt.close()
+
+
+def find_mean_and_var(seq, start, end, bins, bin_range):
+    mean = 0
+    mean_pvalue = 0
+    var = 0
+    var_weight = 0
+    for idx in range(int(start), int(seq.shape[0])):
+        if idx > end:
+            continue
+        if seq[idx] > mean_pvalue:
+            mean = idx
+            mean_pvalue = seq[idx]
+    for idx in range(mean, int(seq.shape[0])):
+        var += ((idx - mean) / bins * bin_range) ** 2 * seq[idx]
+        var_weight += seq[idx]
+    var = var / var_weight
+
+    return mean / bins * bin_range, var ** 0.5
 
 
 def UncertaintySTA(args):
@@ -161,6 +185,8 @@ def UncertaintySTA(args):
     all_positive_uncertainty_in_dataset = np.zeros(args.bins)
     tp_uncertainty_in_dataset = np.zeros(args.bins)
     fn_uncertainty_in_dataset = np.zeros(args.bins)
+    fp_uncertainty_in_dataset = np.zeros(args.bins)
+    uncertainty_max=0
 
     for batch_idx, (images_tensor, pixel_level_labels_tensor, pixel_level_labels_dilated_tensor, _,
                     image_level_labels_tensor, _, filenames) in enumerate(data_loader):
@@ -180,37 +206,70 @@ def UncertaintySTA(args):
         pixel_level_labels_dilated = pixel_level_labels_dilated_tensor.view(-1).numpy()
         preds_positive = post_process_preds_np.reshape(-1)
         uncertainty_maps = uncertainty_maps_np.reshape(-1)
+        if uncertainty_max< np.amax(uncertainty_maps):
+            uncertainty_max = np.amax(uncertainty_maps)
 
         all_positive_uncertainty_batch = uncertainty_maps[pixel_level_labels_dilated == 1]
         all_positive_uncertainty_distr_batch, _ = np.histogram(all_positive_uncertainty_batch,
-                                                               bins=args.bins, range=(0, 0.2))
+                                                               bins=args.bins, range=(0, args.bin_range))
         all_positive_uncertainty_in_dataset += all_positive_uncertainty_distr_batch
 
+        pixel_level_unlabels_dilated = np.subtract(np.ones_like(pixel_level_labels_dilated), pixel_level_labels_dilated)
+        fp_location = np.multiply(pixel_level_unlabels_dilated, preds_positive)
         tp_location = np.multiply(pixel_level_labels_dilated, preds_positive)
         fn_location = np.zeros_like(preds_positive)
         fn_location[pixel_level_labels_dilated == 1] = 1
         fn_location[preds_positive == 1] = 0
 
         tp_uncertainty_batch = uncertainty_maps[tp_location == 1]
-        tp_uncertainty_distr_batch, _ = np.histogram(tp_uncertainty_batch, bins=args.bins, range=(0, 0.2))
+        tp_uncertainty_distr_batch, _ = np.histogram(tp_uncertainty_batch, bins=args.bins, range=(0, args.bin_range))
         tp_uncertainty_in_dataset += tp_uncertainty_distr_batch
 
         fn_uncertainty_batch = uncertainty_maps[fn_location == 1]
-        fn_uncertainty_distr_batch, _ = np.histogram(fn_uncertainty_batch, bins=args.bins, range=(0, 0.2))
+        fn_uncertainty_distr_batch, _ = np.histogram(fn_uncertainty_batch, bins=args.bins, range=(0, args.bin_range))
         fn_uncertainty_in_dataset += fn_uncertainty_distr_batch
 
-    # debug only
-    print(all_positive_uncertainty_in_dataset[0:5])
-    print(tp_uncertainty_in_dataset[0:5])
-    print(fn_uncertainty_in_dataset[0:5])
+        fp_uncertainty_batch = uncertainty_maps[fp_location == 1]
+        fp_uncertainty_distr_batch, _ = np.histogram(fp_uncertainty_batch, bins=args.bins, range=(0, args.bin_range))
+        fp_uncertainty_in_dataset += fp_uncertainty_distr_batch
 
-    all_positive_uncertainty_in_dataset[all_positive_uncertainty_in_dataset > 2000] = 2000
-    tp_uncertainty_in_dataset[tp_uncertainty_in_dataset > 2000] = 2000
-    fn_uncertainty_in_dataset[fn_uncertainty_in_dataset > 2000] = 2000
+    # debug only
+    # print(all_positive_uncertainty_in_dataset[0:5])
+    # print(tp_uncertainty_in_dataset[0:5])
+    # print(fn_uncertainty_in_dataset[0:5])
+
+    all_positive_uncertainty_in_dataset[all_positive_uncertainty_in_dataset > 1000] = 1000
+    tp_uncertainty_in_dataset[tp_uncertainty_in_dataset > 1000] = 1000
+    fn_uncertainty_in_dataset[fn_uncertainty_in_dataset > 1000] = 1000
+    fp_uncertainty_in_dataset[fp_uncertainty_in_dataset > 1000] = 1000
 
     pltsave(all_positive_uncertainty_in_dataset, dir=args.sta_save_dir, name='all positive uncertainty')
     pltsave(tp_uncertainty_in_dataset, dir=args.sta_save_dir, name='True Positive uncertainty')
     pltsave(fn_uncertainty_in_dataset, dir=args.sta_save_dir, name='False Negative uncertainty')
+    pltsave(fp_uncertainty_in_dataset, dir=args.sta_save_dir, name='False Positice uncertainty')
+
+    fp_uncertainty_in_dataset_filted = gaussian_filter1d(fp_uncertainty_in_dataset, sigma=3)
+    tp_uncertainty_in_dataset_filted = gaussian_filter1d(tp_uncertainty_in_dataset, sigma=3)
+    fn_uncertainty_in_dataset_filted = gaussian_filter1d(fn_uncertainty_in_dataset, sigma=3)
+    fp_and_fn = fp_uncertainty_in_dataset_filted + fn_uncertainty_in_dataset_filted
+
+    pltsave(fp_and_fn, dir=args.sta_save_dir, name='FP & FN uncertainty filted')
+    pltsave(tp_uncertainty_in_dataset_filted, dir=args.sta_save_dir, name='True Positive uncertainty filted')
+    pltsave(fn_uncertainty_in_dataset_filted, dir=args.sta_save_dir, name='False Negative uncertainty filted')
+    pltsave(fp_uncertainty_in_dataset_filted, dir=args.sta_save_dir, name='False Positice uncertainty filted')
+
+    fp_mean, fp_var = find_mean_and_var(fp_uncertainty_in_dataset_filted, start=args.bins / 10, end=args.bins,
+                                        bins=args.bins, bin_range=args.bin_range)
+    tp_mean, tp_var = find_mean_and_var(tp_uncertainty_in_dataset_filted, start=args.bins / 10, end=args.bins,
+                                        bins=args.bins,
+                                        bin_range=args.bin_range)
+    fn_mean, fn_var = find_mean_and_var(fn_uncertainty_in_dataset_filted, start=args.bins / 10, end=args.bins,
+                                        bins=args.bins,
+                                        bin_range=args.bin_range)
+    logger.write_and_print('max uncertainty  is {0}  '.format(uncertainty_max))
+    logger.write_and_print('fp uncertainty mean is {0}  variance is {1}'.format(fp_mean, fp_var))
+    logger.write_and_print('tp uncertainty mean is {0}  variance is {1}'.format(tp_mean, tp_var))
+    logger.write_and_print('fn uncertainty mean is {0}  variance is {1}'.format(fn_mean, fn_var))
 
     return
 
