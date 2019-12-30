@@ -246,27 +246,27 @@ def UncertaintySTA(args):
     pltsave(all_positive_uncertainty_in_dataset, dir=args.sta_save_dir, name='all positive uncertainty')
     pltsave(tp_uncertainty_in_dataset, dir=args.sta_save_dir, name='True Positive uncertainty')
     pltsave(fn_uncertainty_in_dataset, dir=args.sta_save_dir, name='False Negative uncertainty')
-    pltsave(fp_uncertainty_in_dataset, dir=args.sta_save_dir, name='False Positice uncertainty')
+    pltsave(fp_uncertainty_in_dataset, dir=args.sta_save_dir, name='False Positive uncertainty')
 
-    fp_uncertainty_in_dataset_filted = gaussian_filter1d(fp_uncertainty_in_dataset, sigma=3)
-    tp_uncertainty_in_dataset_filted = gaussian_filter1d(tp_uncertainty_in_dataset, sigma=3)
-    fn_uncertainty_in_dataset_filted = gaussian_filter1d(fn_uncertainty_in_dataset, sigma=3)
-    fp_and_fn = fp_uncertainty_in_dataset_filted + fn_uncertainty_in_dataset_filted
+    fp_uncertainty_in_dataset_filtered = gaussian_filter1d(fp_uncertainty_in_dataset, sigma=3)
+    tp_uncertainty_in_dataset_filtered = gaussian_filter1d(tp_uncertainty_in_dataset, sigma=3)
+    fn_uncertainty_in_dataset_filtered = gaussian_filter1d(fn_uncertainty_in_dataset, sigma=3)
+    fp_and_fn = fp_uncertainty_in_dataset_filtered + fn_uncertainty_in_dataset_filtered
 
-    pltsave(fp_and_fn, dir=args.sta_save_dir, name='FP & FN uncertainty filted')
-    pltsave(tp_uncertainty_in_dataset_filted, dir=args.sta_save_dir, name='True Positive uncertainty filted')
-    pltsave(fn_uncertainty_in_dataset_filted, dir=args.sta_save_dir, name='False Negative uncertainty filted')
-    pltsave(fp_uncertainty_in_dataset_filted, dir=args.sta_save_dir, name='False Positice uncertainty filted')
+    pltsave(fp_and_fn, dir=args.sta_save_dir, name='FP & FN uncertainty filtered')
+    pltsave(tp_uncertainty_in_dataset_filtered, dir=args.sta_save_dir, name='True Positive uncertainty filtered')
+    pltsave(fn_uncertainty_in_dataset_filtered, dir=args.sta_save_dir, name='False Negative uncertainty filtered')
+    pltsave(fp_uncertainty_in_dataset_filtered, dir=args.sta_save_dir, name='False Positive uncertainty filtered')
 
-    fp_mean, fp_var = find_mean_and_var(fp_uncertainty_in_dataset_filted, start=args.bins / 10, end=args.bins,
+    fp_mean, fp_var = find_mean_and_var(fp_uncertainty_in_dataset_filtered, start=args.bins / 10, end=args.bins,
                                         bins=args.bins, bin_range=args.bin_range)
-    tp_mean, tp_var = find_mean_and_var(tp_uncertainty_in_dataset_filted, start=args.bins / 10, end=args.bins,
+    tp_mean, tp_var = find_mean_and_var(tp_uncertainty_in_dataset_filtered, start=args.bins / 10, end=args.bins,
                                         bins=args.bins,
                                         bin_range=args.bin_range)
-    fn_mean, fn_var = find_mean_and_var(fn_uncertainty_in_dataset_filted, start=args.bins / 10, end=args.bins,
+    fn_mean, fn_var = find_mean_and_var(fn_uncertainty_in_dataset_filtered, start=args.bins / 10, end=args.bins,
                                         bins=args.bins,
                                         bin_range=args.bin_range)
-    logger.write_and_print('max uncertainty  is {0}  '.format(uncertainty_max))
+    logger.write_and_print('max uncertainty is {0}  '.format(uncertainty_max))
     logger.write_and_print('fp uncertainty mean is {0}  variance is {1}'.format(fp_mean, fp_var))
     logger.write_and_print('tp uncertainty mean is {0}  variance is {1}'.format(tp_mean, tp_var))
     logger.write_and_print('fn uncertainty mean is {0}  variance is {1}'.format(fn_mean, fn_var))
