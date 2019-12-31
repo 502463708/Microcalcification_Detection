@@ -12,9 +12,9 @@ cfg = __C
 
 # general parameters
 __C.general = {}
-__C.general.data_root_dir = '/data/lars/data/Inbreast-dataset-cropped-pathches/'
-__C.general.saving_dir = '/data/lars/models/20190926_uCs_image_level_classification_CE_default/'
-__C.general.cuda_device_idx = '7'  # specify the index of the gpu devices to be occupied
+__C.general.data_root_dir = '/data/lars/data/Inbreast-microcalcification-datasets-5764-uCs-20191107/Inbreast-patch-level-split-pos2neg-ratio-1-dataset/'
+__C.general.saving_dir = '/data/lars/models/20191231_uCs_image_level_classification_CE_default_debug/'
+__C.general.cuda_device_idx = '0'  # specify the index of the gpu devices to be occupied
 
 # dataset parameters
 __C.dataset = {}
@@ -34,7 +34,15 @@ __C.dataset.augmentation.enable_horizontal_flip = True
 
 # loss
 __C.loss = {}
-__C.loss.name = 'CrossEntropyLoss'  # only 'CrossEntropyLoss' implemented
+__C.loss.name = 'CrossEntropyLoss'  # only 'CrossEntropyLoss, UncertaintyCrossEntropyLossV1,
+# UncertaintyCrossEntropyLossV2' implemented
+# cfg.dataset.load_uncertainty_map has to be set True when using uncertainty loss
+#
+__C.loss.uncertainty_cross_entropy_loss_v1 = {}
+__C.loss.uncertainty_cross_entropy_loss_v1.uncertainty_threshold = 0.02
+#
+__C.loss.uncertainty_cross_entropy_loss_v2 = {}
+__C.loss.uncertainty_cross_entropy_loss_v2.uncertainty_threshold = 0.02
 
 # net
 __C.net = {}
@@ -46,7 +54,7 @@ __C.net.num_classes = 2
 __C.train = {}
 __C.train.num_epochs = 501  # number of training epoch
 __C.train.save_epochs = 50  # save ckpt every x epochs
-__C.train.batch_size = 1024
+__C.train.batch_size = 480
 __C.train.num_threads = 8
 
 # learning rate scheduler
