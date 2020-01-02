@@ -10,7 +10,7 @@ import torch
 import torch.backends.cudnn as cudnn
 
 from common.utils import get_ckpt_path, generate_radiograph_level_reconstructed_and_residue_result, \
-    post_process_residue_radiograph
+    post_process_residue_radiograph, get_net_list, generate_uncertainty_maps
 from config.config_micro_calcification_patch_level_classification import cfg as c_cfg
 from config.config_micro_calcification_patch_level_reconstruction import cfg as r_cfg
 from dataset.dataset_micro_calcification_radiograph_level import MicroCalcificationRadiographLevelDataset
@@ -47,6 +47,11 @@ def ParseArguments():
                         type=int,
                         default=-1,
                         help='The epoch index of ckpt, set -1 to choose the best ckpt on validation set.')
+    parser.add_argument('--mc_epoch_indexes',
+                        type=int,
+                        default=[410, 420, 430, 440, 450, 460, 470, 480, 490, 500],
+                        help='The epoch ckpt index list for generating uncertainty maps'
+                             'set null list [] to switch off.')
     parser.add_argument('--classification_model_saving_dir',
                         type=str,
                         default='/data/lars/models/20191108_5764_uCs_patch_level_pos2neg_0.5_classification_CE_default/',
@@ -107,7 +112,7 @@ def ParseArguments():
 
 def generate_coordinate_and_score_list(images_tensor, classification_net, pixel_level_label_np,
                                        raw_residue_radiograph_np, processed_residue_radiograph_np, filename, saving_dir,
-                                       crop_patch_size, upsampled_patch_size, mode='detected'):
+                                       crop_patch_size, upsampled_patch_size, net_list, mode='detected'):
     # mode must be either 'detected' or 'annotated'
     assert mode in ['detected', 'annotated']
 
@@ -176,6 +181,10 @@ def generate_coordinate_and_score_list(images_tensor, classification_net, pixel_
             classification_preds_tensor = torch.softmax(classification_preds_tensor, dim=1)
             positive_prob = classification_preds_tensor.cpu().detach().numpy().squeeze()[1]
 
+            # MC dropout
+            uncertainty_maps_np = generate_uncertainty_maps(net_list, upsampled_patch_image_tensor)
+            uncertainty_map_np = uncertainty_maps_np.squeeze()
+
             # calculate the mean value of this connected component on the residue
             residue_mean = (processed_residue_radiograph_np[indexes]).mean()
 
@@ -208,6 +217,7 @@ def generate_coordinate_and_score_list(images_tensor, classification_net, pixel_
                 image_patch_np *= 255
                 raw_residue_patch_np *= 255
                 processed_residue_patch_np *= 255
+                uncertainty_map_np *= 4 * 255
                 #
                 pixel_level_label_patch_np[pixel_level_label_patch_np == 1] = 255
                 pixel_level_label_patch_np[pixel_level_label_patch_np == 2] = 165
@@ -216,6 +226,7 @@ def generate_coordinate_and_score_list(images_tensor, classification_net, pixel_
                 image_patch_np = image_patch_np.astype(np.uint8)
                 raw_residue_patch_np = raw_residue_patch_np.astype(np.uint8)
                 processed_residue_patch_np = processed_residue_patch_np.astype(np.uint8)
+                uncertainty_map_np = uncertainty_map_np.astype(np.uint8)
                 pixel_level_label_patch_np = pixel_level_label_patch_np.astype(np.uint8)
                 #
                 prob_saving_image = np.zeros((crop_patch_size[0], crop_patch_size[1], 3), np.uint8)
@@ -244,6 +255,11 @@ def generate_coordinate_and_score_list(images_tensor, classification_net, pixel_
                                                           '_patch_{:0>3d}_processed_residue.png'.format(
                                                               connected_idx))),
                             processed_residue_patch_np)
+                cv2.imwrite(os.path.join(patch_visualization_dir,
+                                         filename.replace('.png',
+                                                          '_patch_{:0>3d}_uncertainty.png'.format(
+                                                              connected_idx))),
+                            uncertainty_map_np)
                 cv2.imwrite(os.path.join(patch_visualization_dir,
                                          filename.replace('.png',
                                                           '_patch_{:0>3d}_positive_prob.png'.format(connected_idx))),
@@ -339,6 +355,8 @@ def TestMicroCalcificationRadiographLevelDetection(args):
     # define the reconstruction network
     reconstruction_net = VNet2d(num_in_channels=r_cfg.net.in_channels, num_out_channels=r_cfg.net.out_channels)
     #
+    mc_reconstruction_net = copy.deepcopy(reconstruction_net)
+    #
     # get the reconstruction absolute ckpt path
     reconstruction_ckpt_path = get_ckpt_path(args.reconstruction_model_saving_dir, args.reconstruction_epoch_idx)
     #
@@ -348,6 +366,15 @@ def TestMicroCalcificationRadiographLevelDetection(args):
     reconstruction_net = reconstruction_net.eval()
     #
     logger.write_and_print('Load ckpt: {0}...'.format(reconstruction_ckpt_path))
+
+    # get calculate_uncertainty global variance
+    calculate_uncertainty = True if len(args.mc_epoch_indexes) > 0 else False
+
+    # get net list for imitating MC dropout process
+    net_list = None
+    if calculate_uncertainty:
+        net_list = get_net_list(mc_reconstruction_net, args.reconstruction_model_saving_dir, args.mc_epoch_indexes,
+                                logger)
 
     # import the network package
     try:
@@ -416,7 +443,8 @@ def TestMicroCalcificationRadiographLevelDetection(args):
                                                                               filename,
                                                                               patch_level_visualization_saving_dir,
                                                                               args.crop_patch_size,
-                                                                              args.resampled_patch_size)
+                                                                              args.resampled_patch_size,
+                                                                              net_list)
 
         # generate coordinates list for the mask
         label_coord_list, _ = generate_coordinate_and_score_list(images_tensor,
@@ -428,6 +456,7 @@ def TestMicroCalcificationRadiographLevelDetection(args):
                                                                  patch_level_visualization_saving_dir,
                                                                  args.crop_patch_size,
                                                                  args.resampled_patch_size,
+                                                                 net_list,
                                                                  mode='annotated')
 
         # evaluate based on the above three lists
