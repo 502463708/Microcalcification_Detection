@@ -226,8 +226,9 @@ def generate_coordinate_and_score_list(images_tensor, classification_net, pixel_
                 image_patch_np = image_patch_np.astype(np.uint8)
                 raw_residue_patch_np = raw_residue_patch_np.astype(np.uint8)
                 processed_residue_patch_np = processed_residue_patch_np.astype(np.uint8)
-                uncertainty_map_np = uncertainty_map_np.astype(np.uint8)
                 pixel_level_label_patch_np = pixel_level_label_patch_np.astype(np.uint8)
+                uncertainty_map_np = uncertainty_map_np.astype(np.uint8)
+                uncertainty_map_np = cv2.applyColorMap(uncertainty_map_np, cv2.COLORMAP_JET)
                 #
                 prob_saving_image = np.zeros((crop_patch_size[0], crop_patch_size[1], 3), np.uint8)
                 mean_residue_saving_image = np.zeros((crop_patch_size[0], crop_patch_size[1], 3), np.uint8)
