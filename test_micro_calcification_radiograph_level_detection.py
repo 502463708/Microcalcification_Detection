@@ -373,8 +373,8 @@ def TestMicroCalcificationRadiographLevelDetection(args):
     # get net list for imitating MC dropout process
     net_list = None
     if calculate_uncertainty:
-        net_list = get_net_list(mc_reconstruction_net, args.reconstruction_model_saving_dir, args.mc_epoch_indexes,
-                                logger)
+        net_list = get_net_list(mc_reconstruction_net, os.path.join(args.reconstruction_model_saving_dir, 'ckpt'),
+                                args.mc_epoch_indexes, logger)
 
     # import the network package
     try:
