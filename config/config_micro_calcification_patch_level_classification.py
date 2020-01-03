@@ -35,7 +35,7 @@ __C.dataset.augmentation.enable_horizontal_flip = True
 # loss
 __C.loss = {}
 __C.loss.name = 'CrossEntropyLoss'  # only 'CrossEntropyLoss, UncertaintyCrossEntropyLossV1,
-# UncertaintyCrossEntropyLossV2' implemented
+# UncertaintyCrossEntropyLossV2' 'L1Loss' implemented
 # cfg.dataset.load_uncertainty_map has to be set True when using uncertainty loss
 #
 __C.loss.uncertainty_cross_entropy_loss_v1 = {}
@@ -49,6 +49,7 @@ __C.net = {}
 __C.net.name = 'resnet18'  # name of the .py file implementing network architecture
 __C.net.in_channels = 1
 __C.net.num_classes = 2
+__C.net.activation = 'sigmoid'  # only None, 'softmax', 'sigmoid' is supported
 
 # training parameters
 __C.train = {}
@@ -73,5 +74,5 @@ __C.visdom.update_batches = 5  # update images displayed in visdom every x batch
 
 
 '''
-One NVDIA TITAN XP with 12 Mb memory can bear a training load with batch_size=1024 
+One NVIDIA TITAN XP with 12 Mb memory can bear a training load with batch_size=1024 
 '''

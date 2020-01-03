@@ -11,6 +11,7 @@ from config.config_micro_calcification_patch_level_classification import cfg
 from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
 from metrics.metrics_patch_level_classification import MetricsImageLevelClassification
 from logger.logger import Logger
+from loss.l1_loss import L1Loss
 from loss.uncertainty_cross_entropy_loss_v1 import UncertaintyCrossEntropyLossV1
 from loss.uncertainty_cross_entropy_loss_v2 import UncertaintyCrossEntropyLossV2
 from torch.nn import CrossEntropyLoss
@@ -82,6 +83,8 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
                 loss = loss_func(preds_tensor, image_level_labels_tensor, uncertainty_maps_tensor, logger)
             elif loss_name == 'UncertaintyCrossEntropyLossV2':
                 loss = loss_func(preds_tensor, image_level_labels_tensor, uncertainty_maps_tensor, logger)
+            elif loss_name == 'L1Loss':
+                loss = loss_func(preds_tensor, image_level_labels_tensor)
         except:
             loss = loss_func(preds_tensor, image_level_labels_tensor)
 
@@ -223,7 +226,8 @@ if __name__ == '__main__':
         print('failed to import package: {}'.format('net.' + cfg.net.name))
     #
     # define the network
-    net = net_package.ResNet18(in_channels=cfg.net.in_channels, num_classes=cfg.net.num_classes)
+    net = net_package.ResNet18(in_channels=cfg.net.in_channels, num_classes=cfg.net.num_classes,
+                               activation=cfg.net.activation)
 
     # check whether the ckpt dir is empty
     ckpt_file_list = os.listdir(ckpt_dir)
@@ -281,13 +285,16 @@ if __name__ == '__main__':
                                         shuffle=True, num_workers=cfg.train.num_threads)
 
     # define loss function
-    assert cfg.loss.name in ['CrossEntropyLoss', 'UncertaintyCrossEntropyLossV1', 'UncertaintyCrossEntropyLossV2']
+    assert cfg.loss.name in ['CrossEntropyLoss', 'UncertaintyCrossEntropyLossV1', 'UncertaintyCrossEntropyLossV2',
+                             'L1Loss']
     if cfg.loss.name == 'CrossEntropyLoss':
         loss_func = CrossEntropyLoss()
     elif cfg.loss.name == 'UncertaintyCrossEntropyLossV1':
         loss_func = UncertaintyCrossEntropyLossV1(cfg.loss.uncertainty_cross_entropy_loss_v1.uncertainty_threshold)
     elif cfg.loss.name == 'UncertaintyCrossEntropyLossV2':
         loss_func = UncertaintyCrossEntropyLossV2(cfg.loss.uncertainty_cross_entropy_loss_v2.uncertainty_threshold)
+    elif cfg.loss.name == 'L1Loss':
+        loss_func = L1Loss()
 
     # setup optimizer
     optimizer = torch.optim.Adam(net.parameters(), lr=cfg.lr_scheduler.lr)
