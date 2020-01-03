@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 
 class MetricsImageLevelClassification(object):
@@ -28,7 +29,12 @@ class MetricsImageLevelClassification(object):
         assert len(labels.shape) == 1  # shape: B
 
         # transform preds into binary coding
-        _, binary_preds = preds.max(dim=1)
+        if preds.shape[1] > 1:
+            _, binary_preds = preds.max(dim=1)
+        else:
+            binary_preds = torch.zeros_like(preds)
+            binary_preds[preds >= 0.5] = 1
+            binary_preds = binary_preds.view(-1).long()
 
         # transfer the tensor into cpu device
         if binary_preds.device.type != 'cpu':
