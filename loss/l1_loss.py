@@ -22,6 +22,8 @@ class L1Loss(nn.Module):
         if labels.device.type != 'cuda':
             labels = labels.cuda()
 
+        labels = labels.float()
+
         # reshape preds and labels into vectors
         preds = preds.view(-1)
         labels = labels.view(-1)
