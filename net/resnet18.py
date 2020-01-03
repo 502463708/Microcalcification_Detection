@@ -109,7 +109,10 @@ class Bottleneck(nn.Module):
 
 class ResNet18(nn.Module):
 
-    def __init__(self, in_channels=1, num_classes=2):
+    def __init__(self, in_channels=1, num_classes=2, activation=None):
+        assert activation is None or activation in ['softmax', 'sigmoid']
+        self.activation = activation
+
         self.inplanes = 64
         super(ResNet18, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3,
@@ -161,5 +164,10 @@ class ResNet18(nn.Module):
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
+
+        if self.activation == 'softmax':
+            x = torch.softmax(x, dim=1)
+        elif self.activation == 'sigmoid':
+            x = torch.sigmoid(x)
 
         return x

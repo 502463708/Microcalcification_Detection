@@ -27,7 +27,7 @@ def ParseArguments():
 
     parser.add_argument('--num_classes',
                         type=int,
-                        default=2,
+                        default=1,
                         help='classes number: either positive or negative')
 
     parser.add_argument('--dim_x',
