@@ -45,6 +45,8 @@ class UncertaintyCrossEntropyLossV1(nn.Module):
         labels = labels.view(-1)
 
         # calculate image-level uncertainty based on pixel-level uncertainty
+        image_level_uncertainty = uncertainty_maps > 0.05
+        image_level_uncertainty = image_level_uncertainty.sum(1).sum(1)
         # ---write here--- #
         # ---write here--- #
         # ---write here--- #
