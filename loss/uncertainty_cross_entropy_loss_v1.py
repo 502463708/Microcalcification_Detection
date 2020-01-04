@@ -34,7 +34,7 @@ class UncertaintyCrossEntropyLossV1(nn.Module):
         # calculate image-level uncertainty based on pixel-level uncertainty
         image_level_uncertainties = uncertainty_maps > 0.05
         image_level_uncertainties = image_level_uncertainties.sum(1).sum(1)
-        uncertainty_flags = image_level_uncertainties > self.upn
+        uncertainty_flags = (image_level_uncertainties > self.upn).cuda()
         flags = uncertainty_flags & (labels == 0)
 
         # smoothing labels by assign epsilon to negative class
