@@ -11,10 +11,10 @@ from config.config_micro_calcification_patch_level_classification import cfg
 from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
 from metrics.metrics_patch_level_classification import MetricsImageLevelClassification
 from logger.logger import Logger
+from loss.cross_entropy_loss import CrossEntropyLoss
 from loss.l1_loss import L1Loss
 from loss.uncertainty_cross_entropy_loss_v1 import UncertaintyCrossEntropyLossV1
 from loss.uncertainty_cross_entropy_loss_v2 import UncertaintyCrossEntropyLossV2
-from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader
 from time import time
 
@@ -76,16 +76,13 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
         preds_tensor = net(images_tensor)  # the shape of preds_tensor: [B, 2]
 
         # calculate loss of this batch
-        try:
-            loss_name = loss_func.get_name()
-
-            if loss_name == 'UncertaintyCrossEntropyLossV1':
-                loss = loss_func(preds_tensor, image_level_labels_tensor, uncertainty_maps_tensor, logger)
-            elif loss_name == 'UncertaintyCrossEntropyLossV2':
-                loss = loss_func(preds_tensor, image_level_labels_tensor, uncertainty_maps_tensor, logger)
-            elif loss_name == 'L1Loss':
-                loss = loss_func(preds_tensor, image_level_labels_tensor)
-        except:
+        if loss_func.get_name() == 'CrossEntropyLoss':
+            loss = loss_func(preds_tensor, image_level_labels_tensor)
+        elif loss_func.get_name() == 'UncertaintyCrossEntropyLossV1':
+            loss = loss_func(preds_tensor, image_level_labels_tensor, uncertainty_maps_tensor, logger)
+        elif loss_func.get_name() == 'UncertaintyCrossEntropyLossV2':
+            loss = loss_func(preds_tensor, image_level_labels_tensor, uncertainty_maps_tensor, logger)
+        elif loss_func.get_name() == 'L1Loss':
             loss = loss_func(preds_tensor, image_level_labels_tensor)
 
         loss_for_each_batch_list.append(loss.item())
