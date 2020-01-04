@@ -290,7 +290,8 @@ if __name__ == '__main__':
     if cfg.loss.name == 'CrossEntropyLoss':
         loss_func = CrossEntropyLoss()
     elif cfg.loss.name == 'UncertaintyCrossEntropyLossV1':
-        loss_func = UncertaintyCrossEntropyLossV1(cfg.loss.uncertainty_cross_entropy_loss_v1.uncertainty_threshold)
+        loss_func = UncertaintyCrossEntropyLossV1(cfg.loss.uncertainty_cross_entropy_loss_v1.upn,
+                                                  cfg.loss.uncertainty_cross_entropy_loss_v1.epsilon)
     elif cfg.loss.name == 'UncertaintyCrossEntropyLossV2':
         loss_func = UncertaintyCrossEntropyLossV2(cfg.loss.uncertainty_cross_entropy_loss_v2.uncertainty_threshold)
     elif cfg.loss.name == 'L1Loss':

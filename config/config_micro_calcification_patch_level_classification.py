@@ -39,7 +39,8 @@ __C.loss.name = 'CrossEntropyLoss'  # only 'CrossEntropyLoss, UncertaintyCrossEn
 # cfg.dataset.load_uncertainty_map has to be set True when using uncertainty loss
 #
 __C.loss.uncertainty_cross_entropy_loss_v1 = {}
-__C.loss.uncertainty_cross_entropy_loss_v1.uncertainty_threshold = 0.02
+__C.loss.uncertainty_cross_entropy_loss_v1.upn = 0.02
+__C.loss.uncertainty_cross_entropy_loss_v1.epsilon = 0.2
 #
 __C.loss.uncertainty_cross_entropy_loss_v2 = {}
 __C.loss.uncertainty_cross_entropy_loss_v2.uncertainty_threshold = 0.02
@@ -49,7 +50,7 @@ __C.net = {}
 __C.net.name = 'resnet18'  # name of the .py file implementing network architecture
 __C.net.in_channels = 1
 __C.net.num_classes = 2
-__C.net.activation = 'sigmoid'  # only None, 'softmax', 'sigmoid' is supported
+__C.net.activation = None  # only None, 'softmax', 'sigmoid' is supported
 
 # training parameters
 __C.train = {}
