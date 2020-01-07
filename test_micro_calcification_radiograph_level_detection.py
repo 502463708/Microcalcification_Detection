@@ -242,7 +242,9 @@ def generate_coordinate_and_score_list(images_tensor, classification_net, pixel_
 
                 # saving
                 cv2.imwrite(os.path.join(patch_visualization_dir,
-                                         filename.replace('.png', '_patch_{:0>3d}_image.png'.format(connected_idx))),
+                                         filename.replace('.png', '_patch_{:0>3d}_{}_{}_image.png'.format(connected_idx,
+                                                                                                          centroid_row_idx,
+                                                                                                          centroid_column_idx))),
                             image_patch_np)
                 cv2.imwrite(os.path.join(patch_visualization_dir,
                                          filename.replace('.png', '_patch_{:0>3d}_mask.png'.format(connected_idx))),
